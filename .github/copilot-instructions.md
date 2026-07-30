@@ -4,6 +4,9 @@
 
 Run commands from the repository root.
 
+When working in a Git worktree, create and use a separate `.venv` in that worktree. Do not
+reuse the virtual environment from the main checkout or another worktree.
+
 ```bash
 # Set up and run
 python -m venv .venv
