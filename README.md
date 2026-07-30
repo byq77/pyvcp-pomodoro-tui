@@ -19,7 +19,7 @@ pomodoro-tui
 
 Dependencies are managed in `requirements.txt` and loaded dynamically by `pyproject.toml`.
 
-By default, data is stored in `~/.local/share/pomodoro-app/pomodoro.sqlite3`.
+By default, data is stored in `~/.local/share/pomodoro-tui/pomodoro.sqlite3`.
 
 Use a custom database path from the command line:
 

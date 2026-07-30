@@ -5,7 +5,7 @@ from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from .models import Base
 
-APP_DIR_NAME = "pomodoro-app"
+APP_DIR_NAME = "pomodoro-tui"
 SessionFactory = Callable[[], Session]
 
 

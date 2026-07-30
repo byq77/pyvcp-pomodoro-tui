@@ -32,7 +32,7 @@ python -m ruff check src
 python -m ruff format --check src
 ```
 
-Never run `pomodoro-tui` without the `--db-path` option or the `.env` file! We do not want to accidentally overwrite the default database in ~/.local/share/pomodoro-app/pomodoro.sqlite3.
+Never run `pomodoro-tui` without the `--db-path` option or the `.env` file! We do not want to accidentally overwrite the default database in ~/.local/share/pomodoro-tui/pomodoro.sqlite3.
 
 There is currently no test directory or test runner configuration, so no full-suite or single-test command exists. If tests are introduced, keep them under `tests/`; the existing Ruff configuration already provides test-specific rule exceptions.
 
@@ -44,7 +44,7 @@ There is currently no test directory or test runner configuration, so no full-su
 - `PomodoroApplication` is the orchestration boundary: it creates the SQLite/SQLAlchemy services, owns the active `PomodoroTimer`, persists `TimerPhaseRecord` values returned by timer operations, and supplies status text to the UI.
 - `PomodoroTimer` is in-memory domain logic. `tick()` advances elapsed time using `time.monotonic()` and returns completed phase records; `skip()` and `stop()` return interrupted records when elapsed work exists. It must not access the database or UI.
 - `PomodoroTUI` is the asciimatics presentation layer. Its 0.1-second screen loop calls `app.tick()`, renders one of the timer/config/history modes, and maps keys to application methods. Handle terminal resize through the existing `Screen.wrapper` retry loop.
-- SQLAlchemy models in `models.py` define both persistence schemas. `db.py` creates the engine, enables SQLite foreign keys on each connection, and initializes tables with `Base.metadata.create_all()`. By default, the database is `~/.local/share/pomodoro-app/pomodoro.sqlite3`.
+- SQLAlchemy models in `models.py` define both persistence schemas. `db.py` creates the engine, enables SQLite foreign keys on each connection, and initializes tables with `Base.metadata.create_all()`. By default, the database is `~/.local/share/pomodoro-tui/pomodoro.sqlite3`.
 - `ConfigService` persists one `AppConfig` row with `id=1`; `ConfigValues` is the detached, editable representation used by the UI. `HistoryService` derives recent sessions, daily totals, goals, and streaks from persisted session records.
 
 ## Project Conventions
