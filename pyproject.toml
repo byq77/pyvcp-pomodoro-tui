@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pomodoro-app"
+name = "pomodoro-tui"
 version = "0.1.0"
 description = "Terminal Pomodoro timer built with asciimatics, SQLite, and SQLAlchemy"
 readme = "README.md"
@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 dynamic = ["dependencies"]
 
 [project.scripts]
-pomodoro-tui = "pomodoro_app.__main__:main"
+pomodoro-tui = "pomodoro_tui.__main__:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
@@ -57,13 +57,13 @@ pydocstyle.convention = "google"
     "PT011",  # Missing `match` parameter in `pytest.raises()`
     "S101",   # Use of assert is detected
 ]
-"src/pomodoro_app/__init__.py" = [
+"src/pomodoro_tui/__init__.py" = [
     "E402", # Module level import not at top of file (e.g., for `__version__` or `__copyright__` variables)
     "F401", # Module imported but unused (e.g., for `__version__` or `__copyright__` variables)
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["pomodoro_app"]
+known-first-party = ["pomodoro_tui"]
 # Forces all from imports to appear on their own line.
 force-single-line = false
 # Combines as imports on the same line, e.g., `from foo import bar, baz` instead of `from foo import bar\nfrom foo import baz`.

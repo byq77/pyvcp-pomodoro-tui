@@ -32,3 +32,6 @@ htmlcov/
 # Keep the settings.json for python and ruff extensions in vscode
 !.vscode/settings.json
 .idea/
+
+# env files
+.env
