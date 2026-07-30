@@ -1,0 +1,1 @@
+"""Pomodoro terminal application package."""

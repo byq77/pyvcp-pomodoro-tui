@@ -1,0 +1,38 @@
+{
+    "licenser.disableAutoHeaderInsertion": true,
+    "licenser.author": "byq77",
+    "[python]": {
+        "editor.rulers": [
+            99
+        ],
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.organizeImports.ruff": "explicit",
+            "source.fixAll.ruff": "never"
+        }
+    },
+    "better-todo-tree.tree.showBadges": true,
+    "better-todo-tree.general.tagGroups": {
+        "better-todo-tree.tree.scanMode": [
+            "file",
+            "workspace"
+        ],
+        "TODO": [
+            "TODO(byq77)",
+            "TODO"
+        ]
+    },
+    "better-todo-tree.general.tags": [
+        "BUG",
+        "HACK",
+        "FIXME",
+        "TODO(byq77)",
+        "TODO",
+        "XXX",
+        "[ ]",
+        "[x]"
+    ],
+    "better-todo-tree.tree.showCountsInTree": true,
+    "cSpell.words": [],
+}

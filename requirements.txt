@@ -1,0 +1,2 @@
+asciimatics>=1.15.0
+SQLAlchemy>=2.0.0
