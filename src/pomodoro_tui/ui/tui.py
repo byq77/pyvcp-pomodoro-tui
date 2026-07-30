@@ -2,6 +2,7 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import replace
+from functools import cache
 from asciimatics.exceptions import ResizeScreenError
 from asciimatics.screen import Screen
 from ..app import PomodoroApplication
@@ -21,9 +22,22 @@ LARGE_DIGITS = {
     ":": ("     ", "  #  ", "     ", "  #  ", "     "),
 }
 
-PROGRESS_RING_STEPS = 48
-PROGRESS_RING_RADIUS_X = 28
-PROGRESS_RING_RADIUS_Y = 9
+PROGRESS_RING_STEPS = 96
+# Terminal character cells are roughly twice as tall as they are wide, so the
+# horizontal radius must be doubled relative to the vertical radius for the
+# ring to read as a circle instead of a flattened ellipse.
+PROGRESS_RING_ASPECT_RATIO = 2.0
+# Vertical radii (in rows) for the three concentric rings, built outward from
+# the innermost border. The inner radius must be large enough that the timer
+# digits, phase label, and session count printed at its centre never touch
+# it; the progress ring and outer border sit a fixed gap further out so
+# neither border overlaps the coloured progress ring between them. The inner
+# radius scales with the available terminal height (between these bounds) so
+# the ring is as large as possible without pushing the surrounding text off
+# screen on short terminals.
+PROGRESS_RING_GAP_Y = 2
+PROGRESS_RING_MIN_INNER_RADIUS_Y = 5
+PROGRESS_RING_MAX_INNER_RADIUS_Y = 10
 
 
 def _format_seconds(total_seconds: int) -> str:
@@ -31,20 +45,43 @@ def _format_seconds(total_seconds: int) -> str:
     return f"{minutes:02d}:{seconds:02d}"
 
 
-def _progress_ring_points() -> list[tuple[int, int]]:
+def _ring_inner_radius(screen_height: int) -> int:
+    """Pick the inner ring radius that best fits the available screen height.
+
+    Reserves 3 rows above the ring for the header/tabs and 8 rows below it
+    for the action button, legend, controls hint, and status line, then
+    grows the ring to fill whatever height remains, clamped between
+    ``PROGRESS_RING_MIN_INNER_RADIUS_Y`` and ``PROGRESS_RING_MAX_INNER_RADIUS_Y``.
+    """
+    overhead = 3 + 8 + 4 * PROGRESS_RING_GAP_Y
+    available = (screen_height - overhead) // 2
+    return max(PROGRESS_RING_MIN_INNER_RADIUS_Y, min(PROGRESS_RING_MAX_INNER_RADIUS_Y, available))
+
+
+def _ring_radii(screen_height: int) -> tuple[int, int, int]:
+    """Return the (inner, progress, outer) vertical radii for a given screen height."""
+    inner = _ring_inner_radius(screen_height)
+    mid = inner + PROGRESS_RING_GAP_Y
+    outer = mid + PROGRESS_RING_GAP_Y
+    return inner, mid, outer
+
+
+@cache
+def _circle_points(radius_y: int) -> tuple[tuple[int, int], ...]:
+    """Build a set of (x, y) offsets tracing a circle of the given vertical radius.
+
+    The horizontal radius is derived from ``radius_y`` using
+    ``PROGRESS_RING_ASPECT_RATIO`` so the result renders as a circle rather
+    than an ellipse on a terminal grid.
+    """
+    radius_x = round(radius_y * PROGRESS_RING_ASPECT_RATIO)
     points: list[tuple[int, int]] = []
     for step in range(PROGRESS_RING_STEPS):
         angle = (2 * math.pi * step / PROGRESS_RING_STEPS) - (math.pi / 2)
-        point = (
-            round(PROGRESS_RING_RADIUS_X * math.cos(angle)),
-            round(PROGRESS_RING_RADIUS_Y * math.sin(angle)),
-        )
+        point = (round(radius_x * math.cos(angle)), round(radius_y * math.sin(angle)))
         if point not in points:
             points.append(point)
-    return points
-
-
-PROGRESS_RING_POINTS = _progress_ring_points()
+    return tuple(points)
 
 
 class PomodoroTUI:
@@ -111,42 +148,57 @@ class PomodoroTUI:
         state = "Running" if snapshot.running else "Paused" if snapshot.paused else "Stopped"
         self._draw_phase_tabs(screen, snapshot.phase.value)
 
+        _inner_radius, _mid_radius, outer_radius = _ring_radii(screen.height)
         timer_lines = self._large_timer_lines(_format_seconds(snapshot.seconds_remaining))
-        timer_top = max(8, (screen.height - len(timer_lines)) // 2 - 2)
+        # Reserve enough clearance above the ring for its outer border so the
+        # phase tabs never collide with it, then centre the remaining content.
+        min_top = outer_radius - 1
+        timer_top = max(min_top, (screen.height - len(timer_lines)) // 2 - 2)
         ring_center_y = timer_top + 4
         self._draw_progress_ring(
             screen,
             ring_center_y,
             self._phase_progress(snapshot.seconds_remaining, snapshot.phase_duration_seconds),
         )
+        # Only the compact readout (phase/state, digits, session count) is
+        # drawn inside the ring; it fits well within the inner border.
+        self._print_centered(screen, f"{phase_name}  |  {state}", ring_center_y - 6)
         for offset, line in enumerate(timer_lines):
             self._print_centered(
                 screen, line, timer_top + offset, Screen.COLOUR_GREEN, Screen.A_BOLD
             )
-
-        action = "PAUSE" if snapshot.running else "RESUME" if snapshot.paused else "START"
-        self._print_centered(
-            screen,
-            f"[ {action} ]",
-            ring_center_y + 6,
-            Screen.COLOUR_CYAN,
-            Screen.A_BOLD,
-        )
-        self._print_centered(screen, f"{phase_name}  |  {state}", ring_center_y - 6)
         self._print_centered(
             screen,
             f"Focus sessions: {snapshot.focus_sessions_completed_in_cycle}",
             ring_center_y + 2,
         )
+
+        # Everything below is printed outside the outer border so long lines
+        # of text never overlap the ring. Rows are clamped from the bottom up
+        # so that on short terminals each line still gets its own row instead
+        # of collapsing onto the one below it.
+        below_ring = ring_center_y + outer_radius
+        controls_y = min(screen.height - 2, below_ring + 6)
+        legend_y = min(controls_y - 1, below_ring + 4)
+        action_y = min(legend_y - 1, below_ring + 2)
+
+        action = "PAUSE" if snapshot.running else "RESUME" if snapshot.paused else "START"
         self._print_centered(
             screen,
-            "# elapsed  . remaining",
-            ring_center_y + 4,
+            f"[ {action} ]",
+            action_y,
+            Screen.COLOUR_CYAN,
+            Screen.A_BOLD,
+        )
+        self._print_centered(
+            screen,
+            "Bright ring = elapsed  Dim ring = remaining",
+            legend_y,
         )
         self._print_centered(
             screen,
             "Space: start/pause/resume   N: skip   X: stop",
-            min(screen.height - 2, timer_top + len(timer_lines) + 6),
+            controls_y,
         )
         self._print_centered(
             screen,
@@ -165,19 +217,37 @@ class PomodoroTUI:
             return 0.0
         return min(1.0, max(0.0, 1 - (seconds_remaining / phase_duration_seconds)))
 
+    @classmethod
+    def _draw_progress_ring(cls, screen: Screen, center_y: int, progress: float) -> None:
+        center = (screen.width // 2, center_y)
+        inner_radius, mid_radius, outer_radius = _ring_radii(screen.height)
+        mid_points = _circle_points(mid_radius)
+        # The progress ring is drawn first so the fixed-colour borders always
+        # remain on top and are never affected by the elapsed/remaining fill.
+        filled_points = math.ceil(progress * len(mid_points))
+        for index, offset in enumerate(mid_points):
+            colour, attr = (
+                (Screen.COLOUR_CYAN, Screen.A_BOLD)
+                if index < filled_points
+                else (Screen.COLOUR_WHITE, Screen.A_NORMAL)
+            )
+            cls._print_ring_point(screen, center, offset, colour, attr)
+        border_points = (*_circle_points(outer_radius), *_circle_points(inner_radius))
+        for offset in border_points:
+            cls._print_ring_point(screen, center, offset, Screen.COLOUR_WHITE, Screen.A_BOLD)
+
     @staticmethod
-    def _draw_progress_ring(screen: Screen, center_y: int, progress: float) -> None:
-        center_x = screen.width // 2
-        filled_points = math.ceil(progress * len(PROGRESS_RING_POINTS))
-        for index, (offset_x, offset_y) in enumerate(PROGRESS_RING_POINTS):
-            x = center_x + offset_x
-            y = center_y + offset_y
-            if not (0 <= x < screen.width and 2 <= y < screen.height):
-                continue
-            if index < filled_points:
-                screen.print_at("#", x, y, Screen.COLOUR_CYAN, Screen.A_BOLD)
-            else:
-                screen.print_at(".", x, y, Screen.COLOUR_WHITE)
+    def _print_ring_point(
+        screen: Screen,
+        center: tuple[int, int],
+        offset: tuple[int, int],
+        colour: int,
+        attr: int,
+    ) -> None:
+        x = center[0] + offset[0]
+        y = center[1] + offset[1]
+        if 0 <= x < screen.width and 2 <= y < screen.height:
+            screen.print_at("*", x, y, colour, attr)
 
     def _draw_phase_tabs(self, screen: Screen, current_phase: str) -> None:
         tabs = []
