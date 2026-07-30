@@ -4,6 +4,7 @@ Terminal Pomodoro application in Python using:
 - asciimatics
 - SQLite
 - SQLAlchemy
+- python-dotenv
 
 This is a vibe-coded project.
 
@@ -18,10 +19,19 @@ pomodoro-tui
 
 Dependencies are managed in `requirements.txt` and loaded dynamically by `pyproject.toml`.
 
-Optional custom database path:
+By default, data is stored in `~/.local/share/pomodoro-app/pomodoro.sqlite3`.
+
+Use a custom database path from the command line:
 
 ```bash
 pomodoro-tui --db-path /path/to/pomodoro.sqlite3
+```
+
+For local development or automation, the application also loads `.env` and uses `TEST_DB_PATH`
+when `--db-path` is not provided:
+
+```dotenv
+TEST_DB_PATH=/tmp/pomodoro.sqlite3
 ```
 
 ## Controls
