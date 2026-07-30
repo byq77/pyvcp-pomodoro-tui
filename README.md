@@ -13,7 +13,7 @@ This is a vibe-coded project.
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e .[dev] --config-settings editable_mode=strict
 pomodoro-tui
 ```
 

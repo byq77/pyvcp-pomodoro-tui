@@ -15,7 +15,7 @@ reuse the virtual environment from the main checkout or another worktree.
 # Set up and run
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .
+python -m pip install -e .[dev] --config-settings editable_mode=strict
 pomodoro-tui
 
 # Run against an isolated SQLite database (useful for manual verification)
@@ -26,7 +26,7 @@ echo 'TEST_DB_PATH=/tmp/pomodoro.sqlite3' > .env
 pomodoro-tui
 
 # Lint and format check
-# Ruff is configured in pyproject.toml but is not a project dependency.
+# The current dev extra supplies bump-my-version; install Ruff separately for linting.
 python -m pip install ruff
 python -m ruff check src
 python -m ruff format --check src

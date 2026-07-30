@@ -1,0 +1,4 @@
+# check-manifest
+# memory_profiler
+# line_profiler
+bump-my-version>=1.2.7 
