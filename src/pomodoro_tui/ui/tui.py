@@ -38,6 +38,7 @@ PROGRESS_RING_ASPECT_RATIO = 2.0
 PROGRESS_RING_GAP_Y = 2
 PROGRESS_RING_MIN_INNER_RADIUS_Y = 5
 PROGRESS_RING_MAX_INNER_RADIUS_Y = 10
+PROGRESS_RING_ELAPSED_GLYPH = "$$"
 
 
 def _format_seconds(total_seconds: int) -> str:
@@ -227,7 +228,7 @@ class PomodoroTUI:
         filled_points = math.ceil(progress * len(mid_points))
         for index, offset in enumerate(mid_points):
             colour, attr, character = (
-                (Screen.COLOUR_CYAN, Screen.A_BOLD, "$")
+                (Screen.COLOUR_CYAN, Screen.A_BOLD, PROGRESS_RING_ELAPSED_GLYPH)
                 if index < filled_points
                 else (Screen.COLOUR_WHITE, Screen.A_NORMAL, "*")
             )
@@ -247,7 +248,7 @@ class PomodoroTUI:
     ) -> None:
         x = center[0] + offset[0]
         y = center[1] + offset[1]
-        if 0 <= x < screen.width and 2 <= y < screen.height:
+        if 0 <= x and x + len(character) <= screen.width and 2 <= y < screen.height:
             screen.print_at(character, x, y, colour, attr)
 
     def _draw_phase_tabs(self, screen: Screen, current_phase: str) -> None:
