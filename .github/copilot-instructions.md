@@ -28,6 +28,8 @@ python -m ruff check src
 python -m ruff format --check src
 ```
 
+Never run `pomodoro-tui` without the `--db-path` option or the `.env` file! We do not want to accidentally overwrite the default database in ~/.local/share/pomodoro-app/pomodoro.sqlite3.
+
 There is currently no test directory or test runner configuration, so no full-suite or single-test command exists. If tests are introduced, keep them under `tests/`; the existing Ruff configuration already provides test-specific rule exceptions.
 
 ## Architecture
