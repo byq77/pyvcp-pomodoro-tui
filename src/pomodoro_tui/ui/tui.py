@@ -3,10 +3,14 @@ import math
 import time
 from dataclasses import replace
 from functools import cache
+from typing import TYPE_CHECKING
 from asciimatics.exceptions import ResizeScreenError
 from asciimatics.screen import Screen
-from ..app import PomodoroApplication
-from ..models import SessionStatus
+from pomodoro_tui import __version__
+from pomodoro_tui.models import SessionStatus
+
+if TYPE_CHECKING:
+    from pomodoro_tui.app import PomodoroApplication
 
 LARGE_DIGITS = {
     "0": (" ### ", "#   #", "#   #", "#   #", " ### "),
@@ -139,7 +143,7 @@ class PomodoroTUI:
             time.sleep(0.1)
 
     def _draw_header(self, screen: Screen) -> None:
-        title = "Pomodoro TUI  |  [T]imer [C]onfig [H]istory [Q]uit"
+        title = f"Pomodoro TUI v{__version__}  |  [T]imer [C]onfig [H]istory [Q]uit"
         screen.print_at(title, 0, 0, Screen.COLOUR_CYAN, Screen.A_BOLD)
         screen.print_at("-" * screen.width, 0, 1)
 

@@ -3,6 +3,7 @@ import argparse
 import os
 from pathlib import Path
 import dotenv
+from . import __version__
 from .app import PomodoroApplication
 from .ui.tui import PomodoroTUI
 
@@ -10,8 +11,14 @@ dotenv.load_dotenv()
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Pomodoro terminal timer")
+    parser = argparse.ArgumentParser(prog="pomodoro-tui", description="Pomodoro terminal timer")
     default_db_path_env = os.getenv("TEST_DB_PATH")
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+    )
     parser.add_argument(
         "--db-path",
         type=Path,
