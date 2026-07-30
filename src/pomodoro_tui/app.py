@@ -4,6 +4,7 @@ from pathlib import Path
 from .config import ConfigService, ConfigValues
 from .db import create_engine_and_session_factory, init_db
 from .history import HistoryService, HistorySnapshot
+from .runtime_state import RuntimeStateService
 from .timer import PomodoroTimer
 
 
@@ -14,15 +15,19 @@ class PomodoroApplication:
 
         self._config_service = ConfigService(session_factory)
         self._history_service = HistoryService(session_factory)
+        self._runtime_state_service = RuntimeStateService(session_factory)
         self.config = self._config_service.get_or_create()
         self.timer = PomodoroTimer(self.config.to_timer_settings())
         self.status_message = "Ready."
+        self._restore_timer_state()
 
     def tick(self) -> None:
         records = self.timer.tick()
         for record in records:
             self._history_service.record(record)
             self.status_message = f"Completed {record.phase_type.value.replace('_', ' ')}."
+        if records:
+            self._sync_runtime_state()
 
     def toggle_timer(self) -> None:
         before = self.timer.snapshot()
@@ -34,6 +39,7 @@ class PomodoroApplication:
             self.status_message = "Timer paused."
         elif before.paused and after.running:
             self.status_message = "Timer resumed."
+        self._sync_runtime_state()
 
     def skip_phase(self) -> None:
         record = self.timer.skip()
@@ -42,12 +48,17 @@ class PomodoroApplication:
             return
         self._history_service.record(record)
         self.status_message = "Phase skipped."
+        self._sync_runtime_state()
 
     def stop_timer(self, reason: str = "stopped") -> None:
         record = self.timer.stop(reason=reason)
         if record is not None:
             self._history_service.record(record)
         self.status_message = "Timer stopped."
+        self._sync_runtime_state()
+
+    def shutdown(self) -> None:
+        self._sync_runtime_state()
 
     def build_config_draft(self) -> ConfigValues:
         return replace(self.config)
@@ -56,6 +67,21 @@ class PomodoroApplication:
         self.config = self._config_service.save(values)
         self.timer.apply_settings(self.config.to_timer_settings())
         self.status_message = "Configuration saved."
+        self._sync_runtime_state()
 
     def history_snapshot(self) -> HistorySnapshot:
         return self._history_service.snapshot(self.config)
+
+    def _sync_runtime_state(self) -> None:
+        runtime_state = self.timer.export_runtime_state()
+        if runtime_state is None:
+            self._runtime_state_service.clear()
+            return
+        self._runtime_state_service.save(runtime_state)
+
+    def _restore_timer_state(self) -> None:
+        runtime_state = self._runtime_state_service.load_for_today()
+        if runtime_state is None:
+            return
+        self.timer.restore_runtime_state(runtime_state)
+        self.status_message = "Restored timer from earlier today."
