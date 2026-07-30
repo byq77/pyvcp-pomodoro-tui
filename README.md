@@ -58,6 +58,7 @@ Configuration view:
 - Full Pomodoro cycle with automatic phase transitions.
 - Circular timer progress ring that fills clockwise as each phase elapses and encloses the session counter and progress legend.
 - Persistent configuration in SQLite.
+- Timer runtime state persists across app restarts until the day changes.
 - History tracking for completed/interrupted phases.
 - Analytics snapshot:
   - daily totals

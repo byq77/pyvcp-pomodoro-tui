@@ -55,3 +55,23 @@ class PomodoroSession(Base):
     actual_duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     interruption_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     note: Mapped[str | None] = mapped_column(String(300), nullable=True)
+
+
+class AppTimerState(Base):
+    __tablename__ = "app_timer_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    phase_type: Mapped[PhaseType] = mapped_column(SqlEnum(PhaseType), nullable=False)
+    running: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    paused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    seconds_remaining: Mapped[int] = mapped_column(Integer, nullable=False)
+    focus_sessions_completed_in_cycle: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )
+    phase_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    saved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )

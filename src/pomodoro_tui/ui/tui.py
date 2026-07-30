@@ -349,8 +349,7 @@ class PomodoroTUI:
         if key is None:
             return
         if key in (ord("q"), ord("Q")):
-            if self._app.timer.snapshot().running or self._app.timer.snapshot().paused:
-                self._app.stop_timer(reason="quit")
+            self._app.shutdown()
             self._running = False
             return
         if key in (ord("t"), ord("T")):

@@ -39,6 +39,17 @@ class TimerPhaseRecord:
     interruption_reason: str | None = None
 
 
+@dataclass(slots=True)
+class TimerRuntimeState:
+    phase: PhaseType
+    running: bool
+    paused: bool
+    seconds_remaining: int
+    focus_sessions_completed_in_cycle: int
+    phase_started_at: datetime | None
+    saved_at: datetime
+
+
 class PomodoroTimer:
     def __init__(self, settings: TimerSettings):
         self._settings = settings
@@ -64,6 +75,31 @@ class PomodoroTimer:
             phase_duration_seconds=self._phase_duration_seconds(self._phase),
             focus_sessions_completed_in_cycle=self._focus_sessions_completed_in_cycle,
         )
+
+    def export_runtime_state(self, saved_at: datetime | None = None) -> TimerRuntimeState | None:
+        if not self._running and not self._paused:
+            return None
+        return TimerRuntimeState(
+            phase=self._phase,
+            running=self._running,
+            paused=self._paused,
+            seconds_remaining=self._seconds_remaining,
+            focus_sessions_completed_in_cycle=self._focus_sessions_completed_in_cycle,
+            phase_started_at=self._phase_started_at,
+            saved_at=saved_at or utc_now(),
+        )
+
+    def restore_runtime_state(self, state: TimerRuntimeState) -> None:
+        self._phase = state.phase
+        self._running = state.running and not state.paused
+        self._paused = state.paused and not state.running
+        self._focus_sessions_completed_in_cycle = max(0, state.focus_sessions_completed_in_cycle)
+        phase_duration = self._phase_duration_seconds(self._phase)
+        self._seconds_remaining = max(0, min(phase_duration, state.seconds_remaining))
+        self._phase_started_at = state.phase_started_at
+        if self._phase_started_at is None and (self._running or self._paused):
+            self._phase_started_at = utc_now()
+        self._last_tick_monotonic = time.monotonic() if self._running else None
 
     def start(self, now: datetime | None = None) -> None:
         if self._running and not self._paused:
