@@ -226,15 +226,15 @@ class PomodoroTUI:
         # remain on top and are never affected by the elapsed/remaining fill.
         filled_points = math.ceil(progress * len(mid_points))
         for index, offset in enumerate(mid_points):
-            colour, attr = (
-                (Screen.COLOUR_CYAN, Screen.A_BOLD)
+            colour, attr, character = (
+                (Screen.COLOUR_CYAN, Screen.A_BOLD, "$")
                 if index < filled_points
-                else (Screen.COLOUR_WHITE, Screen.A_NORMAL)
+                else (Screen.COLOUR_WHITE, Screen.A_NORMAL, "*")
             )
-            cls._print_ring_point(screen, center, offset, colour, attr)
+            cls._print_ring_point(screen, center, offset, colour, attr, character)
         border_points = (*_circle_points(outer_radius), *_circle_points(inner_radius))
         for offset in border_points:
-            cls._print_ring_point(screen, center, offset, Screen.COLOUR_WHITE, Screen.A_BOLD)
+            cls._print_ring_point(screen, center, offset, Screen.COLOUR_WHITE, Screen.A_BOLD, "*")
 
     @staticmethod
     def _print_ring_point(
@@ -243,11 +243,12 @@ class PomodoroTUI:
         offset: tuple[int, int],
         colour: int,
         attr: int,
+        character: str,
     ) -> None:
         x = center[0] + offset[0]
         y = center[1] + offset[1]
         if 0 <= x < screen.width and 2 <= y < screen.height:
-            screen.print_at("*", x, y, colour, attr)
+            screen.print_at(character, x, y, colour, attr)
 
     def _draw_phase_tabs(self, screen: Screen, current_phase: str) -> None:
         tabs = []
