@@ -203,7 +203,7 @@ class PomodoroTUI:
         )
         self._print_centered(
             screen,
-            "Space: start/pause/resume   N: skip   X: stop",
+            "Space: start/pause/resume   N: skip   R: reset counter   X: stop",
             controls_y,
         )
         self._print_centered(
@@ -379,6 +379,8 @@ class PomodoroTUI:
             self._app.toggle_timer()
         elif key in (ord("n"), ord("N")):
             self._app.skip_phase()
+        elif key in (ord("r"), ord("R")):
+            self._app.reset_focus_counter()
         elif key in (ord("x"), ord("X")):
             self._app.stop_timer(reason="stopped")
 

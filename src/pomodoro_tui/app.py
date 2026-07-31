@@ -47,6 +47,11 @@ class PomodoroApplication:
             self.status_message = "Timer resumed."
         self._sync_runtime_state()
 
+    def reset_focus_counter(self) -> None:
+        self.timer.reset_focus_counter()
+        self.status_message = "Focus counter reset."
+        self._sync_runtime_state()
+
     def skip_phase(self) -> None:
         record = self.timer.skip()
         if record is None:

@@ -132,6 +132,9 @@ class PomodoroTimer:
         else:
             self.start()
 
+    def reset_focus_counter(self) -> None:
+        self._focus_sessions_completed_in_cycle = 0
+
     def stop(self, reason: str = "stopped") -> TimerPhaseRecord | None:
         record = self._build_interrupted_record(reason)
         self._running = False
