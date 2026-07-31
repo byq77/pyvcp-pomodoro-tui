@@ -1,15 +1,16 @@
 # Pomodoro TUI Copilot Instructions
 
-## Commands
+## Workflow
 
-Run commands from the repository root.
-
-Never analyze Python virtual-environment directories (such as `.venv`) or Python build artifacts
+- Read the relevant code first. Don't propose solutions before understanding the existing code.
+- Always run commands from the repository root.
+- Never analyze Python virtual-environment directories (such as `.venv`) or Python build artifacts
 (such as `build/`, `dist/`, and `*.egg-info/`). Restrict code analysis to source, tests, and other
 repository-maintained files.
-
-When working in a git worktree, create and use a separate `.venv` in that worktree. Do not
+- When working in a git worktree, create and use a separate `.venv` in that worktree. Do not
 reuse the virtual environment from the main checkout or another worktree.
+
+## Build
 
 Create an .venv environment (if not already created) and install the project in editable mode with development dependencies:
 ```bash
@@ -18,7 +19,9 @@ source .venv/bin/activate
 python3 -m pip install -e .[dev] --config-settings editable_mode=strict
 ```
 
-Before running the application, ensure that the .env file exists and contains a valid `TEST_DB_PATH` value:
+## Run
+
+Before running the application, ensure that the `.env` file exists in the root directory and contains a valid `TEST_DB_PATH` value:
 ```dotenv
 TEST_DB_PATH=/tmp/pomodoro.sqlite3
 ```
@@ -33,15 +36,12 @@ You can also specify a database path directly with the `--db-path` option:
 pomodoro-tui --db-path /tmp/pomodoro.sqlite3
 ```
 
-or configure the default database path for local development or automation:
-```bash
-echo 'TEST_DB_PATH=/tmp/pomodoro.sqlite3' > .env
-pomodoro-tui
-```
-
 Never run `pomodoro-tui` without the `--db-path` option or the `.env` file! We do not want to accidentally overwrite the default database in ~/.local/share/pomodoro-tui/pomodoro.sqlite3.
 
-Lint and format check. Do it after editing code, before committing, and before pushing to the remote repository. The `ruff` tool is used for linting and formatting checks:
+## Linting and Formatting
+
+Do it after editing code, before committing, and before pushing to the remote repository. The `ruff` tool is used for linting and formatting checks:
+
 ```bash
 python -m ruff check src
 python -m ruff format --check src
