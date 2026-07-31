@@ -13,9 +13,9 @@ reuse the virtual environment from the main checkout or another worktree.
 
 Create an .venv environment (if not already created) and install the project in editable mode with development dependencies:
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -e .[dev] --config-settings editable_mode=strict
+python3 -m pip install -e .[dev] --config-settings editable_mode=strict
 ```
 
 Before running the application, ensure that the .env file exists and contains a valid `TEST_DB_PATH` value:

@@ -11,9 +11,9 @@ This is a vibe-coded project.
 ## Run
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .[dev] --config-settings editable_mode=strict
+python3 -m pip install -e .[dev] --config-settings editable_mode=strict
 pomodoro-tui
 ```
 
