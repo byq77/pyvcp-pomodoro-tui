@@ -53,12 +53,13 @@ def _format_seconds(total_seconds: int) -> str:
 def _ring_inner_radius(screen_height: int) -> int:
     """Pick the inner ring radius that best fits the available screen height.
 
-    Reserves 3 rows above the ring for the header/tabs and 8 rows below it
-    for the action button, legend, controls hint, and status line, then
+    Reserves 3 rows above the ring for the header/tabs and 9 rows below it
+    for the session readout, action button, legend, controls hint, and status
+    line, then
     grows the ring to fill whatever height remains, clamped between
     ``PROGRESS_RING_MIN_INNER_RADIUS_Y`` and ``PROGRESS_RING_MAX_INNER_RADIUS_Y``.
     """
-    overhead = 3 + 8 + 4 * PROGRESS_RING_GAP_Y
+    overhead = 3 + 9 + 4 * PROGRESS_RING_GAP_Y
     available = (screen_height - overhead) // 2
     return max(PROGRESS_RING_MIN_INNER_RADIUS_Y, min(PROGRESS_RING_MAX_INNER_RADIUS_Y, available))
 
@@ -174,9 +175,7 @@ class PomodoroTUI:
             )
         self._print_centered(
             screen,
-            f"Focus sessions: {snapshot.focus_sessions_completed_in_cycle}"
-            f"  |  {snapshot.session_mode.value.title()} x{snapshot.session_mode.multiplier:g}"
-            f"  |  Points: {self._app.points_total:g}",
+            f"Focus sessions: {snapshot.focus_sessions_completed_in_cycle}",
             ring_center_y + 2,
         )
 
@@ -188,7 +187,14 @@ class PomodoroTUI:
         controls_y = min(screen.height - 2, below_ring + 6)
         legend_y = min(controls_y - 1, below_ring + 4)
         action_y = min(legend_y - 1, below_ring + 2)
+        session_info_y = min(action_y - 1, below_ring + 1)
 
+        self._print_centered(
+            screen,
+            f"{snapshot.session_mode.value.title()} x{snapshot.session_mode.multiplier:g}"
+            f"  |  Points: {self._app.points_total:g}",
+            session_info_y,
+        )
         action = "PAUSE" if snapshot.running else "RESUME" if snapshot.paused else "START"
         self._print_centered(
             screen,
