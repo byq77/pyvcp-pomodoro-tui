@@ -3,8 +3,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
-from sqlalchemy import func, select
-from .models import PhaseType, PomodoroSession, SessionStatus
+from sqlalchemy import select
+from .models import PhaseType, PomodoroSession, SessionMode, SessionStatus
 
 if TYPE_CHECKING:
     from .config import ConfigValues
@@ -41,13 +41,14 @@ class HistorySnapshot:
     goal_progress_today: GoalProgress
 
 
-def points_for_duration(actual_duration_seconds: int) -> int:
+def points_for_duration(actual_duration_seconds: int, session_mode: SessionMode) -> float:
     """Return the points earned for a completed focus phase of the given duration.
 
     One point is awarded per full minute, matching the documented reward of
-    25 points for a 25-minute focus session.
+    25 normal-mode points for a 25-minute focus session. The session mode
+    multiplier is then applied to the base score.
     """
-    return (actual_duration_seconds // 60) * POINTS_PER_MINUTE
+    return (actual_duration_seconds // 60) * POINTS_PER_MINUTE * session_mode.multiplier
 
 
 class HistoryService:
@@ -64,6 +65,7 @@ class HistoryService:
                     ended_at=record.ended_at,
                     planned_duration_seconds=record.planned_duration_seconds,
                     actual_duration_seconds=record.actual_duration_seconds,
+                    session_mode=record.session_mode,
                     interruption_reason=record.interruption_reason,
                 )
             )
@@ -84,16 +86,20 @@ class HistoryService:
             goal_progress_today=goal_progress,
         )
 
-    def total_points(self) -> int:
+    def total_points(self) -> float:
         with self._session_factory() as session:
-            statement = select(
-                func.coalesce(func.sum(PomodoroSession.actual_duration_seconds), 0)
-            ).where(
+            statement = select(PomodoroSession).where(
                 PomodoroSession.phase_type == PhaseType.FOCUS,
                 PomodoroSession.status == SessionStatus.COMPLETED,
             )
-            total_seconds = session.scalar(statement) or 0
-        return points_for_duration(total_seconds)
+            sessions = session.scalars(statement)
+            return sum(
+                (
+                    points_for_duration(row.actual_duration_seconds, row.session_mode)
+                    for row in sessions
+                ),
+                start=0.0,
+            )
 
     def recent_sessions(self, limit: int = 20) -> list[PomodoroSession]:
         with self._session_factory() as session:

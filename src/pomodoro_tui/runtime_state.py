@@ -37,6 +37,7 @@ class RuntimeStateService:
                 paused=row.paused,
                 seconds_remaining=row.seconds_remaining,
                 focus_sessions_completed_in_cycle=row.focus_sessions_completed_in_cycle,
+                session_mode=row.session_mode,
                 phase_started_at=_ensure_utc(row.phase_started_at)
                 if row.phase_started_at
                 else None,
@@ -54,6 +55,7 @@ class RuntimeStateService:
             row.paused = state.paused
             row.seconds_remaining = state.seconds_remaining
             row.focus_sessions_completed_in_cycle = state.focus_sessions_completed_in_cycle
+            row.session_mode = state.session_mode
             row.phase_started_at = state.phase_started_at
             row.saved_at = _ensure_utc(state.saved_at)
             session.commit()

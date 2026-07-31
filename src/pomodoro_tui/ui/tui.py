@@ -175,7 +175,8 @@ class PomodoroTUI:
         self._print_centered(
             screen,
             f"Focus sessions: {snapshot.focus_sessions_completed_in_cycle}"
-            f"  |  Points: {self._app.points_total}",
+            f"  |  {snapshot.session_mode.value.title()} x{snapshot.session_mode.multiplier:g}"
+            f"  |  Points: {self._app.points_total:g}",
             ring_center_y + 2,
         )
 
@@ -203,7 +204,7 @@ class PomodoroTUI:
         )
         self._print_centered(
             screen,
-            "Space: start/pause/resume   N: skip   R: reset counter   X: stop",
+            "Space: start/pause/resume   Tab: mode   N: skip   R: reset counter   X: stop",
             controls_y,
         )
         self._print_centered(
@@ -377,6 +378,8 @@ class PomodoroTUI:
     def _handle_timer_key(self, key: int) -> None:
         if key == ord(" "):
             self._app.toggle_timer()
+        elif key in (Screen.KEY_TAB, ord("\t")):
+            self._app.cycle_session_mode()
         elif key in (ord("n"), ord("N")):
             self._app.skip_phase()
         elif key in (ord("r"), ord("R")):

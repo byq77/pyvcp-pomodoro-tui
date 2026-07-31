@@ -44,6 +44,7 @@ Global:
 
 Timer view:
 - `Space` start / pause / resume
+- `Tab` cycle session mode: Silent (`x1.5`), Normal (`x1.0`), Dirty (`x0.5`)
 - `N` skip current phase
 - `X` stop timer
 
@@ -60,6 +61,8 @@ Configuration view:
 - Persistent configuration in SQLite.
 - Timer runtime state persists across app restarts until the day changes.
 - History tracking for completed/interrupted phases.
+- Session modes that adjust completed focus-session points: Silent (`x1.5`), Normal (`x1.0`),
+  and Dirty (`x0.5`).
 - Analytics snapshot:
   - daily totals
   - current streak

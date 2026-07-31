@@ -33,9 +33,9 @@ class PomodoroApplication:
             self._history_service.record(record)
             self.status_message = f"Completed {record.phase_type.value.replace('_', ' ')}."
             if record.phase_type == PhaseType.FOCUS and record.status == SessionStatus.COMPLETED:
-                earned = points_for_duration(record.actual_duration_seconds)
+                earned = points_for_duration(record.actual_duration_seconds, record.session_mode)
                 self.points_total += earned
-                self.status_message += f" +{earned} points!"
+                self.status_message += f" +{earned:g} points!"
         if records:
             self._sync_runtime_state()
 
@@ -54,6 +54,11 @@ class PomodoroApplication:
     def reset_focus_counter(self) -> None:
         self.timer.reset_focus_counter()
         self.status_message = "Focus counter reset."
+        self._sync_runtime_state()
+
+    def cycle_session_mode(self) -> None:
+        mode = self.timer.cycle_session_mode()
+        self.status_message = f"Session mode: {mode.value.title()} (x{mode.multiplier:g})."
         self._sync_runtime_state()
 
     def skip_phase(self) -> None:

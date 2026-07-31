@@ -20,6 +20,20 @@ class SessionStatus(str, Enum):
     INTERRUPTED = "interrupted"
 
 
+class SessionMode(str, Enum):
+    SILENT = "silent"
+    NORMAL = "normal"
+    DIRTY = "dirty"
+
+    @property
+    def multiplier(self) -> float:
+        return {
+            SessionMode.SILENT: 1.5,
+            SessionMode.NORMAL: 1.0,
+            SessionMode.DIRTY: 0.5,
+        }[self]
+
+
 class AppConfig(Base):
     __tablename__ = "app_config"
 
@@ -53,6 +67,11 @@ class PomodoroSession(Base):
     ended_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     planned_duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
     actual_duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    session_mode: Mapped[SessionMode] = mapped_column(
+        SqlEnum(SessionMode, values_callable=lambda modes: [mode.value for mode in modes]),
+        nullable=False,
+        default=SessionMode.NORMAL,
+    )
     interruption_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     note: Mapped[str | None] = mapped_column(String(300), nullable=True)
 
@@ -67,6 +86,11 @@ class AppTimerState(Base):
     seconds_remaining: Mapped[int] = mapped_column(Integer, nullable=False)
     focus_sessions_completed_in_cycle: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0
+    )
+    session_mode: Mapped[SessionMode] = mapped_column(
+        SqlEnum(SessionMode, values_callable=lambda modes: [mode.value for mode in modes]),
+        nullable=False,
+        default=SessionMode.NORMAL,
     )
     phase_started_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

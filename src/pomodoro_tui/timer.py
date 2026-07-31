@@ -2,7 +2,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from .models import PhaseType, SessionStatus
+from .models import PhaseType, SessionMode, SessionStatus
 
 
 def utc_now() -> datetime:
@@ -26,6 +26,7 @@ class TimerSnapshot:
     seconds_remaining: int
     phase_duration_seconds: int
     focus_sessions_completed_in_cycle: int
+    session_mode: SessionMode
 
 
 @dataclass(slots=True)
@@ -36,6 +37,7 @@ class TimerPhaseRecord:
     ended_at: datetime
     planned_duration_seconds: int
     actual_duration_seconds: int
+    session_mode: SessionMode
     interruption_reason: str | None = None
 
 
@@ -46,6 +48,7 @@ class TimerRuntimeState:
     paused: bool
     seconds_remaining: int
     focus_sessions_completed_in_cycle: int
+    session_mode: SessionMode
     phase_started_at: datetime | None
     saved_at: datetime
 
@@ -57,6 +60,7 @@ class PomodoroTimer:
         self._running = False
         self._paused = False
         self._focus_sessions_completed_in_cycle = 0
+        self._session_mode = SessionMode.NORMAL
         self._seconds_remaining = self._phase_duration_seconds(self._phase)
         self._phase_started_at: datetime | None = None
         self._last_tick_monotonic: float | None = None
@@ -74,6 +78,7 @@ class PomodoroTimer:
             seconds_remaining=self._seconds_remaining,
             phase_duration_seconds=self._phase_duration_seconds(self._phase),
             focus_sessions_completed_in_cycle=self._focus_sessions_completed_in_cycle,
+            session_mode=self._session_mode,
         )
 
     def export_runtime_state(self, saved_at: datetime | None = None) -> TimerRuntimeState | None:
@@ -85,6 +90,7 @@ class PomodoroTimer:
             paused=self._paused,
             seconds_remaining=self._seconds_remaining,
             focus_sessions_completed_in_cycle=self._focus_sessions_completed_in_cycle,
+            session_mode=self._session_mode,
             phase_started_at=self._phase_started_at,
             saved_at=saved_at or utc_now(),
         )
@@ -94,6 +100,7 @@ class PomodoroTimer:
         self._running = state.running and not state.paused
         self._paused = state.paused and not state.running
         self._focus_sessions_completed_in_cycle = max(0, state.focus_sessions_completed_in_cycle)
+        self._session_mode = state.session_mode
         phase_duration = self._phase_duration_seconds(self._phase)
         self._seconds_remaining = max(0, min(phase_duration, state.seconds_remaining))
         self._phase_started_at = state.phase_started_at
@@ -134,6 +141,12 @@ class PomodoroTimer:
 
     def reset_focus_counter(self) -> None:
         self._focus_sessions_completed_in_cycle = 0
+
+    def cycle_session_mode(self) -> SessionMode:
+        modes = tuple(SessionMode)
+        current_index = modes.index(self._session_mode)
+        self._session_mode = modes[(current_index + 1) % len(modes)]
+        return self._session_mode
 
     def stop(self, reason: str = "stopped") -> TimerPhaseRecord | None:
         record = self._build_interrupted_record(reason)
@@ -189,6 +202,7 @@ class PomodoroTimer:
             ended_at=ended_at,
             planned_duration_seconds=planned,
             actual_duration_seconds=planned,
+            session_mode=self._session_mode,
         )
 
     def _build_interrupted_record(self, reason: str) -> TimerPhaseRecord | None:
@@ -205,6 +219,7 @@ class PomodoroTimer:
             ended_at=utc_now(),
             planned_duration_seconds=planned,
             actual_duration_seconds=actual,
+            session_mode=self._session_mode,
             interruption_reason=reason,
         )
 

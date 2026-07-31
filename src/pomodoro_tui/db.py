@@ -1,7 +1,7 @@
 from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
-from sqlalchemy import Engine, create_engine, event
+from sqlalchemy import Engine, create_engine, event, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 from .models import Base
 
@@ -42,3 +42,27 @@ def create_engine_and_session_factory(
 
 def init_db(engine: Engine) -> None:
     Base.metadata.create_all(bind=engine)
+    _migrate_session_mode_columns(engine)
+
+
+def _migrate_session_mode_columns(engine: Engine) -> None:
+    """Add session-mode columns to databases created before session modes existed."""
+    inspector = inspect(engine)
+    columns_by_table = {
+        table_name: {column["name"] for column in inspector.get_columns(table_name)}
+        for table_name in ("pomodoro_session", "app_timer_state")
+    }
+    statements = {
+        "pomodoro_session": (
+            "ALTER TABLE pomodoro_session "
+            "ADD COLUMN session_mode VARCHAR(6) NOT NULL DEFAULT 'normal'"
+        ),
+        "app_timer_state": (
+            "ALTER TABLE app_timer_state "
+            "ADD COLUMN session_mode VARCHAR(6) NOT NULL DEFAULT 'normal'"
+        ),
+    }
+    with engine.begin() as connection:
+        for table_name, statement in statements.items():
+            if "session_mode" not in columns_by_table[table_name]:
+                connection.execute(text(statement))
