@@ -3,12 +3,11 @@
 ## Workflow
 
 - Read the relevant code first. Don't propose solutions before understanding the existing code.
-- Always run commands from the repository root.
 - Never analyze Python virtual-environment directories (such as `.venv`) or Python build artifacts
 (such as `build/`, `dist/`, and `*.egg-info/`). Restrict code analysis to source, tests, and other
 repository-maintained files.
 - When working in a git worktree, create and use a separate `.venv` in that worktree. Do not
-reuse the virtual environment from the main checkout or another worktree.
+reuse the virtual environment from the main checkout or another worktree. Never apply changes from a worktree to the main checkout or another worktree.
 
 ## Build
 
