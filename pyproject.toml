@@ -42,10 +42,11 @@ ignore = [
     "B028",   # No explicit `stacklevel` keyword argument found in warning
     "COM812", # Trailing commas are taken care of by `ruff format`
     # No docstrings required in the following cases
-    "D100", # Missing module docstring
-    "D104", # Missing public package docstring
-    "D105", # Missing docstring in magic method
-    "D107", # Missing docstring in `__init__`
+    "D100",   # Missing module docstring
+    "D104",   # Missing public package docstring
+    "D105",   # Missing docstring in magic method
+    "D107",   # Missing docstring in `__init__`
+    "CPY001",
     # "DTZ005", # Missing timezone in datetime.now()
 ]
 pydocstyle.convention = "google"

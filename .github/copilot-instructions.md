@@ -8,31 +8,44 @@ Never analyze Python virtual-environment directories (such as `.venv`) or Python
 (such as `build/`, `dist/`, and `*.egg-info/`). Restrict code analysis to source, tests, and other
 repository-maintained files.
 
-When working in a Git worktree, create and use a separate `.venv` in that worktree. Do not
+When working in a git worktree, create and use a separate `.venv` in that worktree. Do not
 reuse the virtual environment from the main checkout or another worktree.
 
+Create an .venv environment (if not already created) and install the project in editable mode with development dependencies:
 ```bash
-# Set up and run
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .[dev] --config-settings editable_mode=strict
+```
+
+Before running the application, ensure that the .env file exists and contains a valid `TEST_DB_PATH` value:
+```dotenv
+TEST_DB_PATH=/tmp/pomodoro.sqlite3
+```
+
+Run the application in the terminal:
+```bash
 pomodoro-tui
+```
 
-# Run against an isolated SQLite database (useful for manual verification)
+You can also specify a database path directly with the `--db-path` option:
+```bash
 pomodoro-tui --db-path /tmp/pomodoro.sqlite3
+```
 
-# Or configure the default database path for local development or automation
+or configure the default database path for local development or automation:
+```bash
 echo 'TEST_DB_PATH=/tmp/pomodoro.sqlite3' > .env
 pomodoro-tui
-
-# Lint and format check
-# The current dev extra supplies bump-my-version; install Ruff separately for linting.
-python -m pip install ruff
-python -m ruff check src
-python -m ruff format --check src
 ```
 
 Never run `pomodoro-tui` without the `--db-path` option or the `.env` file! We do not want to accidentally overwrite the default database in ~/.local/share/pomodoro-tui/pomodoro.sqlite3.
+
+Lint and format check. Do it after editing code, before committing, and before pushing to the remote repository. The `ruff` tool is used for linting and formatting checks:
+```bash
+python -m ruff check src
+python -m ruff format --check src
+```
 
 There is currently no test directory or test runner configuration, so no full-suite or single-test command exists. If tests are introduced, keep them under `tests/`; the existing Ruff configuration already provides test-specific rule exceptions.
 
