@@ -3,7 +3,8 @@ from dataclasses import replace
 from pathlib import Path
 from .config import ConfigService, ConfigValues
 from .db import create_engine_and_session_factory, init_db
-from .history import HistoryService, HistorySnapshot
+from .history import HistoryService, HistorySnapshot, points_for_duration
+from .models import PhaseType, SessionStatus
 from .runtime_state import RuntimeStateService
 from .timer import PomodoroTimer
 
@@ -19,6 +20,7 @@ class PomodoroApplication:
         self.config = self._config_service.get_or_create()
         self.timer = PomodoroTimer(self.config.to_timer_settings())
         self.status_message = "Ready."
+        self.points_total = self._history_service.total_points()
         self._restore_timer_state()
 
     def tick(self) -> None:
@@ -26,6 +28,10 @@ class PomodoroApplication:
         for record in records:
             self._history_service.record(record)
             self.status_message = f"Completed {record.phase_type.value.replace('_', ' ')}."
+            if record.phase_type == PhaseType.FOCUS and record.status == SessionStatus.COMPLETED:
+                earned = points_for_duration(record.actual_duration_seconds)
+                self.points_total += earned
+                self.status_message += f" +{earned} points!"
         if records:
             self._sync_runtime_state()
 

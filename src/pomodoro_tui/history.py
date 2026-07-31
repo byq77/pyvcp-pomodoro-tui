@@ -2,11 +2,13 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
-from sqlalchemy import select
+from sqlalchemy import func, select
 from .config import ConfigValues
 from .db import SessionFactory
 from .models import PhaseType, PomodoroSession, SessionStatus
 from .timer import TimerPhaseRecord
+
+POINTS_PER_MINUTE = 1
 
 
 @dataclass(slots=True)
@@ -34,6 +36,15 @@ class HistorySnapshot:
     daily_totals: list[DailyTotal]
     current_streak_days: int
     goal_progress_today: GoalProgress
+
+
+def points_for_duration(actual_duration_seconds: int) -> int:
+    """Return the points earned for a completed focus phase of the given duration.
+
+    One point is awarded per full minute, matching the documented reward of
+    25 points for a 25-minute focus session.
+    """
+    return (actual_duration_seconds // 60) * POINTS_PER_MINUTE
 
 
 class HistoryService:
@@ -69,6 +80,17 @@ class HistoryService:
             current_streak_days=streak,
             goal_progress_today=goal_progress,
         )
+
+    def total_points(self) -> int:
+        with self._session_factory() as session:
+            statement = select(
+                func.coalesce(func.sum(PomodoroSession.actual_duration_seconds), 0)
+            ).where(
+                PomodoroSession.phase_type == PhaseType.FOCUS,
+                PomodoroSession.status == SessionStatus.COMPLETED,
+            )
+            total_seconds = session.scalar(statement) or 0
+        return points_for_duration(total_seconds)
 
     def recent_sessions(self, limit: int = 20) -> list[PomodoroSession]:
         with self._session_factory() as session:
