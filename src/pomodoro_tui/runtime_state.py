@@ -1,11 +1,12 @@
 from __future__ import annotations
-
-from datetime import UTC
-from datetime import datetime
-
-from .db import SessionFactory
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 from .models import AppTimerState
 from .timer import TimerRuntimeState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from .db import SessionFactory
 
 
 def _ensure_utc(value: datetime) -> datetime:

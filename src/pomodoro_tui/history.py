@@ -2,11 +2,14 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from typing import TYPE_CHECKING
 from sqlalchemy import func, select
-from .config import ConfigValues
-from .db import SessionFactory
 from .models import PhaseType, PomodoroSession, SessionStatus
-from .timer import TimerPhaseRecord
+
+if TYPE_CHECKING:
+    from .config import ConfigValues
+    from .db import SessionFactory
+    from .timer import TimerPhaseRecord
 
 POINTS_PER_MINUTE = 1
 

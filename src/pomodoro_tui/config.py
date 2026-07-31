@@ -1,10 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from sqlalchemy.orm import Session
-from .db import SessionFactory
+from typing import TYPE_CHECKING
 from .models import AppConfig
 from .timer import TimerSettings
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from .db import SessionFactory
 
 
 @dataclass(slots=True)
@@ -32,17 +35,23 @@ class ConfigValues:
 
 def _validate(values: ConfigValues) -> None:
     if values.focus_duration_min < 1:
-        raise ValueError("focus_duration_min must be at least 1")
+        msg = f"focus_duration_min must be at least 1, got {values.focus_duration_min}"
+        raise ValueError(msg)
     if values.short_break_duration_min < 1:
-        raise ValueError("short_break_duration_min must be at least 1")
+        msg = f"short_break_duration_min must be at least 1, got {values.short_break_duration_min}"
+        raise ValueError(msg)
     if values.long_break_duration_min < 1:
-        raise ValueError("long_break_duration_min must be at least 1")
+        msg = f"long_break_duration_min must be at least 1, got {values.long_break_duration_min}"
+        raise ValueError(msg)
     if values.long_break_interval < 1:
-        raise ValueError("long_break_interval must be at least 1")
+        msg = f"long_break_interval must be at least 1, got {values.long_break_interval}"
+        raise ValueError(msg)
     if values.daily_goal_sessions < 1:
-        raise ValueError("daily_goal_sessions must be at least 1")
+        msg = f"daily_goal_sessions must be at least 1, got {values.daily_goal_sessions}"
+        raise ValueError(msg)
     if values.history_days_visible < 1:
-        raise ValueError("history_days_visible must be at least 1")
+        msg = f"history_days_visible must be at least 1, got {values.history_days_visible}"
+        raise ValueError(msg)
 
 
 def _to_values(row: AppConfig) -> ConfigValues:

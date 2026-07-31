@@ -1,6 +1,10 @@
 from __future__ import annotations
 from dataclasses import replace
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
 from .config import ConfigService, ConfigValues
 from .db import create_engine_and_session_factory, init_db
 from .history import HistoryService, HistorySnapshot, points_for_duration
