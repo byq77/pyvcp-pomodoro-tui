@@ -174,7 +174,8 @@ class PomodoroTUI:
             )
         self._print_centered(
             screen,
-            f"Focus sessions: {snapshot.focus_sessions_completed_in_cycle}",
+            f"Focus sessions: {snapshot.focus_sessions_completed_in_cycle}"
+            f"  |  Points: {self._app.points_total}",
             ring_center_y + 2,
         )
 
