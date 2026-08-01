@@ -53,13 +53,13 @@ def _format_seconds(total_seconds: int) -> str:
 def _ring_inner_radius(screen_height: int) -> int:
     """Pick the inner ring radius that best fits the available screen height.
 
-    Reserves 3 rows above the ring for the header/tabs and 9 rows below it
+    Reserves 3 rows above the ring for the header/tabs and 11 rows below it
     for the session readout, action button, legend, controls hint, and status
     line, then
     grows the ring to fill whatever height remains, clamped between
     ``PROGRESS_RING_MIN_INNER_RADIUS_Y`` and ``PROGRESS_RING_MAX_INNER_RADIUS_Y``.
     """
-    overhead = 3 + 9 + 4 * PROGRESS_RING_GAP_Y
+    overhead = 3 + 11 + 4 * PROGRESS_RING_GAP_Y
     available = (screen_height - overhead) // 2
     return max(PROGRESS_RING_MIN_INNER_RADIUS_Y, min(PROGRESS_RING_MAX_INNER_RADIUS_Y, available))
 
@@ -160,7 +160,7 @@ class PomodoroTUI:
         # phase tabs never collide with it, then centre the remaining content.
         min_top = outer_radius - 1
         timer_top = max(min_top, (screen.height - len(timer_lines)) // 2 - 2)
-        ring_center_y = timer_top + 4
+        ring_center_y = timer_top + len(timer_lines) // 2
         self._draw_progress_ring(
             screen,
             ring_center_y,
@@ -176,7 +176,7 @@ class PomodoroTUI:
         self._print_centered(
             screen,
             f"Focus sessions: {snapshot.focus_sessions_completed_in_cycle}",
-            ring_center_y + 2,
+            timer_top + len(timer_lines) + 1,
         )
 
         # Everything below is printed outside the outer border so long lines
@@ -184,10 +184,10 @@ class PomodoroTUI:
         # so that on short terminals each line still gets its own row instead
         # of collapsing onto the one below it.
         below_ring = ring_center_y + outer_radius
-        controls_y = min(screen.height - 2, below_ring + 6)
-        legend_y = min(controls_y - 1, below_ring + 4)
-        action_y = min(legend_y - 1, below_ring + 2)
-        session_info_y = min(action_y - 1, below_ring + 1)
+        controls_y = min(screen.height - 2, below_ring + 8)
+        legend_y = min(controls_y - 1, below_ring + 6)
+        action_y = min(legend_y - 1, below_ring + 4)
+        session_info_y = min(action_y - 1, below_ring + 3)
 
         self._print_centered(
             screen,
