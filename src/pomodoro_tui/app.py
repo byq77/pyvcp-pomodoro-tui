@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
 from .config import ConfigService, ConfigValues
 from .db import create_engine_and_session_factory, init_db
-from .history import HistoryService, HistorySnapshot, points_for_duration
+from .history import GamificationSnapshot, HistoryService, HistorySnapshot
 from .models import PhaseType, SessionStatus
 from .runtime_state import RuntimeStateService
 from .timer import PomodoroTimer
@@ -30,10 +30,10 @@ class PomodoroApplication:
     def tick(self) -> None:
         records = self.timer.tick()
         for record in records:
+            earned = self._history_service.points_for_record(record)
             self._history_service.record(record)
             self.status_message = f"Completed {record.phase_type.value.replace('_', ' ')}."
             if record.phase_type == PhaseType.FOCUS and record.status == SessionStatus.COMPLETED:
-                earned = points_for_duration(record.actual_duration_seconds, record.session_mode)
                 self.points_total += earned
                 self.status_message += f" +{earned:g} points!"
         if records:
@@ -91,6 +91,9 @@ class PomodoroApplication:
 
     def history_snapshot(self) -> HistorySnapshot:
         return self._history_service.snapshot(self.config)
+
+    def gamification_snapshot(self) -> GamificationSnapshot:
+        return self._history_service.gamification_snapshot(self.config)
 
     def _sync_runtime_state(self) -> None:
         runtime_state = self.timer.export_runtime_state()

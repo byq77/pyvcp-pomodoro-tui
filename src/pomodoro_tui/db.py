@@ -43,6 +43,7 @@ def create_engine_and_session_factory(
 def init_db(engine: Engine) -> None:
     Base.metadata.create_all(bind=engine)
     _migrate_session_mode_columns(engine)
+    _migrate_achievements_enabled_column(engine)
 
 
 def _migrate_session_mode_columns(engine: Engine) -> None:
@@ -66,3 +67,14 @@ def _migrate_session_mode_columns(engine: Engine) -> None:
         for table_name, statement in statements.items():
             if "session_mode" not in columns_by_table[table_name]:
                 connection.execute(text(statement))
+
+
+def _migrate_achievements_enabled_column(engine: Engine) -> None:
+    """Add the achievements setting to databases created before it existed."""
+    inspector = inspect(engine)
+    app_config_columns = {column["name"] for column in inspector.get_columns("app_config")}
+    if "achievements_enabled" in app_config_columns:
+        return
+    statement = "ALTER TABLE app_config ADD COLUMN achievements_enabled BOOLEAN NOT NULL DEFAULT 1"
+    with engine.begin() as connection:
+        connection.execute(text(statement))

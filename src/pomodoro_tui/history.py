@@ -1,9 +1,12 @@
 from __future__ import annotations
+
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
-from sqlalchemy import select
+
+from sqlalchemy import func, select
+
 from .models import PhaseType, PomodoroSession, SessionMode, SessionStatus
 
 if TYPE_CHECKING:
@@ -12,6 +15,14 @@ if TYPE_CHECKING:
     from .timer import TimerPhaseRecord
 
 POINTS_PER_MINUTE = 1
+BOOST_THRESHOLDS: tuple[tuple[int, float], ...] = (
+    (4, 1.5),
+    (8, 2.0),
+    (12, 3.0),
+    (16, 4.0),
+)
+POMODORO_ACHIEVEMENT_TARGETS: tuple[int, ...] = (10, 100, 200, 500, 1000)
+STREAK_ACHIEVEMENT_TARGETS: tuple[int, ...] = (3, 7, 14, 30, 100)
 
 
 @dataclass(slots=True)
@@ -41,14 +52,53 @@ class HistorySnapshot:
     goal_progress_today: GoalProgress
 
 
-def points_for_duration(actual_duration_seconds: int, session_mode: SessionMode) -> float:
-    """Return the points earned for a completed focus phase of the given duration.
+@dataclass(slots=True)
+class AchievementProgress:
+    name: str
+    current: int
+    target: int
+    unlocked: bool
 
-    One point is awarded per full minute, matching the documented reward of
-    25 normal-mode points for a 25-minute focus session. The session mode
-    multiplier is then applied to the base score.
-    """
+
+@dataclass(slots=True)
+class BoostProgress:
+    consecutive_focus_completed: int
+    multiplier: float
+    next_target: int | None
+    next_multiplier: float | None
+
+
+@dataclass(slots=True)
+class GamificationSnapshot:
+    achievements_enabled: bool
+    completed_pomodoro_achievements: list[AchievementProgress]
+    streak_achievements: list[AchievementProgress]
+    today_boost: BoostProgress
+
+
+def points_for_duration(actual_duration_seconds: int, session_mode: SessionMode) -> float:
+    """Return the base points earned for a completed focus phase duration."""
     return (actual_duration_seconds // 60) * POINTS_PER_MINUTE * session_mode.multiplier
+
+
+def boost_multiplier_for_streak(consecutive_focus_completed: int) -> float:
+    """Return the streak boost multiplier for a same-day completed-focus streak."""
+    multiplier = 1.0
+    for threshold, value in BOOST_THRESHOLDS:
+        if consecutive_focus_completed >= threshold:
+            multiplier = value
+    return multiplier
+
+
+def points_for_completed_focus(
+    actual_duration_seconds: int,
+    session_mode: SessionMode,
+    consecutive_focus_completed: int,
+) -> float:
+    """Return boosted points for a completed focus phase."""
+    return points_for_duration(
+        actual_duration_seconds, session_mode
+    ) * boost_multiplier_for_streak(consecutive_focus_completed)
 
 
 class HistoryService:
@@ -71,6 +121,21 @@ class HistoryService:
             )
             session.commit()
 
+    def points_for_record(self, record: TimerPhaseRecord) -> float:
+        """Return points to award if the given record is persisted."""
+        if record.phase_type != PhaseType.FOCUS or record.status != SessionStatus.COMPLETED:
+            return 0.0
+
+        day = record.started_at.date()
+        existing_rows = self._focus_rows_for_day(day)
+        prior_streak = self._consecutive_completed_focus(existing_rows)
+        current_streak = prior_streak + 1
+        return points_for_completed_focus(
+            record.actual_duration_seconds,
+            record.session_mode,
+            current_streak,
+        )
+
     def snapshot(self, config: ConfigValues) -> HistorySnapshot:
         recent_sessions = self.recent_sessions(limit=20)
         daily_totals = self.daily_totals(
@@ -86,20 +151,87 @@ class HistoryService:
             goal_progress_today=goal_progress,
         )
 
-    def total_points(self) -> float:
+    def gamification_snapshot(self, config: ConfigValues) -> GamificationSnapshot:
+        completed_focus_total = self.completed_focus_sessions_total()
+        current_streak = self.current_streak(config)
+        today_boost = self.today_boost()
+        return GamificationSnapshot(
+            achievements_enabled=config.achievements_enabled,
+            completed_pomodoro_achievements=[
+                AchievementProgress(
+                    name=f"{target} completed pomodoros",
+                    current=completed_focus_total,
+                    target=target,
+                    unlocked=completed_focus_total >= target,
+                )
+                for target in POMODORO_ACHIEVEMENT_TARGETS
+            ],
+            streak_achievements=[
+                AchievementProgress(
+                    name=f"{target}-day streak",
+                    current=current_streak,
+                    target=target,
+                    unlocked=current_streak >= target,
+                )
+                for target in STREAK_ACHIEVEMENT_TARGETS
+            ],
+            today_boost=today_boost,
+        )
+
+    def completed_focus_sessions_total(self) -> int:
         with self._session_factory() as session:
-            statement = select(PomodoroSession).where(
+            statement = select(func.count(PomodoroSession.id)).where(
                 PomodoroSession.phase_type == PhaseType.FOCUS,
                 PomodoroSession.status == SessionStatus.COMPLETED,
             )
-            sessions = session.scalars(statement)
-            return sum(
-                (
-                    points_for_duration(row.actual_duration_seconds, row.session_mode)
-                    for row in sessions
-                ),
-                start=0.0,
+            return int(session.scalar(statement) or 0)
+
+    def total_points(self) -> float:
+        with self._session_factory() as session:
+            statement = (
+                select(PomodoroSession)
+                .where(PomodoroSession.phase_type == PhaseType.FOCUS)
+                .order_by(PomodoroSession.started_at.asc(), PomodoroSession.id.asc())
             )
+            rows = list(session.scalars(statement))
+
+        total = 0.0
+        streak = 0
+        current_day: date | None = None
+        for row in rows:
+            row_day = row.started_at.date()
+            if current_day != row_day:
+                current_day = row_day
+                streak = 0
+            if row.status == SessionStatus.COMPLETED:
+                streak += 1
+                total += points_for_completed_focus(
+                    row.actual_duration_seconds,
+                    row.session_mode,
+                    streak,
+                )
+            elif row.status == SessionStatus.INTERRUPTED:
+                streak = 0
+        return total
+
+    def today_boost(self) -> BoostProgress:
+        today = date.today()
+        rows = self._focus_rows_for_day(today)
+        streak = self._consecutive_completed_focus(rows)
+        multiplier = boost_multiplier_for_streak(streak)
+        next_target = None
+        next_multiplier = None
+        for threshold, candidate_multiplier in BOOST_THRESHOLDS:
+            if threshold > streak:
+                next_target = threshold
+                next_multiplier = candidate_multiplier
+                break
+        return BoostProgress(
+            consecutive_focus_completed=streak,
+            multiplier=multiplier,
+            next_target=next_target,
+            next_multiplier=next_multiplier,
+        )
 
     def recent_sessions(self, limit: int = 20) -> list[PomodoroSession]:
         with self._session_factory() as session:
@@ -186,4 +318,27 @@ class HistoryService:
                 break
             streak += 1
             cursor -= timedelta(days=1)
+        return streak
+
+    def _focus_rows_for_day(self, day: date) -> list[PomodoroSession]:
+        start_dt = datetime.combine(day, datetime.min.time(), tzinfo=UTC)
+        end_dt = start_dt + timedelta(days=1)
+        with self._session_factory() as session:
+            statement = (
+                select(PomodoroSession)
+                .where(PomodoroSession.phase_type == PhaseType.FOCUS)
+                .where(PomodoroSession.started_at >= start_dt)
+                .where(PomodoroSession.started_at < end_dt)
+                .order_by(PomodoroSession.started_at.asc(), PomodoroSession.id.asc())
+            )
+            return list(session.scalars(statement))
+
+    @staticmethod
+    def _consecutive_completed_focus(rows: list[PomodoroSession]) -> int:
+        streak = 0
+        for row in rows:
+            if row.status == SessionStatus.COMPLETED:
+                streak += 1
+            elif row.status == SessionStatus.INTERRUPTED:
+                streak = 0
         return streak

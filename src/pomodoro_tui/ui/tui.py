@@ -107,6 +107,7 @@ class PomodoroTUI:
             ("include_breaks_in_totals", "Include breaks in totals", "bool"),
             ("streak_requires_goal", "Streak requires meeting daily goal", "bool"),
             ("track_weekends", "Track weekends in streaks", "bool"),
+            ("achievements_enabled", "Enable achievements", "bool"),
         ]
         self._selected_config_index = 0
 
@@ -135,8 +136,10 @@ class PomodoroTUI:
                 self._draw_timer(screen)
             elif self._mode == "config":
                 self._draw_config(screen)
-            else:
+            elif self._mode == "history":
                 self._draw_history(screen)
+            else:
+                self._draw_achievements(screen)
             screen.refresh()
             self._handle_key(screen.get_key())
             if screen.has_resized():
@@ -144,7 +147,7 @@ class PomodoroTUI:
             time.sleep(0.1)
 
     def _draw_header(self, screen: Screen) -> None:
-        title = f"Pomodoro TUI v{__version__}  |  [T]imer [C]onfig [H]istory [Q]uit"
+        title = f"Pomodoro TUI v{__version__}  |  [T]imer [C]onfig [H]istory [A]chievements [Q]uit"
         screen.print_at(title, 0, 0, Screen.COLOUR_CYAN, Screen.A_BOLD)
         screen.print_at("-" * screen.width, 0, 1)
 
@@ -358,6 +361,83 @@ class PomodoroTUI:
                 Screen.COLOUR_YELLOW,
             )
 
+    def _draw_achievements(self, screen: Screen) -> None:
+        snapshot = self._app.gamification_snapshot()
+        screen.print_at("Mode: Achievements", 0, 3, Screen.COLOUR_WHITE, Screen.A_BOLD)
+        line = 5
+
+        if not snapshot.achievements_enabled:
+            screen.print_at(
+                "Achievements are disabled. Enable them in Configuration to track progress.",
+                0,
+                line,
+                Screen.COLOUR_YELLOW,
+            )
+            screen.print_at(
+                f"Status: {self._app.status_message}",
+                0,
+                min(screen.height - 1, line + 2),
+                Screen.COLOUR_YELLOW,
+            )
+            return
+
+        boost = snapshot.today_boost
+        screen.print_at(
+            f"Today's focus streak: {boost.consecutive_focus_completed} | Active boost: x{boost.multiplier:g}",
+            0,
+            line,
+            Screen.COLOUR_GREEN,
+        )
+        line += 1
+        if boost.next_target is None:
+            screen.print_at(
+                "Next boost: max tier reached for today.", 0, line, Screen.COLOUR_GREEN
+            )
+        else:
+            screen.print_at(
+                f"Next boost at {boost.next_target} in a row: x{boost.next_multiplier:g}",
+                0,
+                line,
+            )
+        line += 2
+
+        screen.print_at(
+            "Completed Pomodoro achievements:", 0, line, Screen.COLOUR_CYAN, Screen.A_BOLD
+        )
+        line += 1
+        for achievement in snapshot.completed_pomodoro_achievements:
+            if line >= screen.height - 2:
+                break
+            marker = "Unlocked" if achievement.unlocked else "Locked  "
+            screen.print_at(
+                f"{marker} | {achievement.name:<24} | {achievement.current}/{achievement.target}",
+                0,
+                line,
+            )
+            line += 1
+
+        line += 1
+        if line < screen.height - 2:
+            screen.print_at("Streak achievements:", 0, line, Screen.COLOUR_CYAN, Screen.A_BOLD)
+            line += 1
+        for achievement in snapshot.streak_achievements:
+            if line >= screen.height - 2:
+                break
+            marker = "Unlocked" if achievement.unlocked else "Locked  "
+            screen.print_at(
+                f"{marker} | {achievement.name:<24} | {achievement.current}/{achievement.target}",
+                0,
+                line,
+            )
+            line += 1
+
+        screen.print_at(
+            f"Status: {self._app.status_message}",
+            0,
+            min(screen.height - 1, line + 1),
+            Screen.COLOUR_YELLOW,
+        )
+
     def _handle_key(self, key: int | None) -> None:
         if key is None:
             return
@@ -374,6 +454,9 @@ class PomodoroTUI:
             return
         if key in (ord("h"), ord("H")):
             self._mode = "history"
+            return
+        if key in (ord("a"), ord("A")):
+            self._mode = "achievements"
             return
 
         if self._mode == "timer":

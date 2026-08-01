@@ -22,6 +22,7 @@ class ConfigValues:
     streak_requires_goal: bool = False
     track_weekends: bool = True
     history_days_visible: int = 14
+    achievements_enabled: bool = True
 
     def to_timer_settings(self) -> TimerSettings:
         return TimerSettings(
@@ -66,6 +67,7 @@ def _to_values(row: AppConfig) -> ConfigValues:
         streak_requires_goal=row.streak_requires_goal,
         track_weekends=row.track_weekends,
         history_days_visible=row.history_days_visible,
+        achievements_enabled=row.achievements_enabled,
     )
 
 
@@ -93,6 +95,7 @@ class ConfigService:
             row.streak_requires_goal = values.streak_requires_goal
             row.track_weekends = values.track_weekends
             row.history_days_visible = values.history_days_visible
+            row.achievements_enabled = values.achievements_enabled
             row.updated_at = datetime.now(UTC)
             session.commit()
             return _to_values(row)

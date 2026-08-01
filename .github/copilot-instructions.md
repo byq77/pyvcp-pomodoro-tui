@@ -11,11 +11,15 @@ reuse the virtual environment from the main checkout or another worktree. Never 
 
 ## Build
 
-Create an .venv environment (if not already created) and install the project in editable mode with development dependencies:
+Create an .venv environment (if not already created) to work with the repository. Use Python 3.11 or later.:
 ```bash
 python3 -m venv .venv
+```
+
+Activate the virtual environment and install the project in editable mode with development dependencies:
+```bash
 source .venv/bin/activate
-python3 -m pip install -e .[dev] --config-settings editable_mode=strict
+python -m pip install -e .[dev] --config-settings editable_mode=strict
 ```
 
 ## Run

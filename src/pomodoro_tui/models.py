@@ -48,6 +48,7 @@ class AppConfig(Base):
     streak_requires_goal: Mapped[bool] = mapped_column(Boolean, default=False)
     track_weekends: Mapped[bool] = mapped_column(Boolean, default=True)
     history_days_visible: Mapped[int] = mapped_column(Integer, default=14)
+    achievements_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
