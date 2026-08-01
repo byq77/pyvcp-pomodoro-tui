@@ -35,3 +35,7 @@ htmlcov/
 
 # env files
 .env
+
+# plans directory
+plans/*
+!.gitkeep
