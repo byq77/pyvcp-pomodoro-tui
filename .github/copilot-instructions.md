@@ -65,19 +65,30 @@ There is currently no test directory or test runner configuration, so no full-su
   UI status message, and saves or restores active timer state.
 - `PomodoroTimer` is in-memory domain logic with no database or UI dependency. It advances active
   phases with `time.monotonic()`, returns `TimerPhaseRecord` values for completed or interrupted
-  work, selects short or long breaks from the focus-cycle counter, and exports/imports
+  work, selects short or long breaks from the focus-cycle counter, cycles the `SessionMode`
+  (`SILENT`/`NORMAL`/`DIRTY`, each with a points multiplier), and exports/imports
   `TimerRuntimeState`.
 - `PomodoroTUI` is the asciimatics presentation layer. Its 0.1-second loop calls `app.tick()`,
-  renders timer, configuration, and history modes, and maps input only to application methods. The
-  `Screen.wrapper` retry loop owns resize recovery; drawing helpers must keep all output in bounds.
+  renders timer, configuration, history, and achievements modes, and maps input only to application
+  methods. The `Screen.wrapper` retry loop owns resize recovery; drawing helpers must keep all
+  output in bounds.
 - SQLAlchemy models in `models.py` define `AppConfig`, `PomodoroSession`, and `AppTimerState`.
-  `db.py` creates the SQLite engine, enables foreign keys on every connection, and initializes
-  tables with `Base.metadata.create_all()`. The default database is
+  `db.py` creates the SQLite engine, enables foreign keys on every connection, initializes tables
+  with `Base.metadata.create_all()`, and then runs additive column migrations (e.g.
+  `_migrate_session_mode_columns`, `_migrate_achievements_enabled_column`) for databases created
+  before those columns existed. The default database is
   `~/.local/share/pomodoro-tui/pomodoro.sqlite3`.
 - `ConfigService` persists the singleton `AppConfig` row (`id=1`) and exposes detached
-  `ConfigValues`. `HistoryService` stores phase records and derives history, totals, goals, streaks,
-  and points. `RuntimeStateService` persists the singleton active timer state and discards it when
-  it was saved on a prior local calendar day.
+  `ConfigValues`, including gamification/analytics settings (`daily_goal_sessions`,
+  `include_breaks_in_totals`, `streak_requires_goal`, `track_weekends`, `history_days_visible`,
+  `achievements_enabled`). `HistoryService` stores phase records and derives history, daily totals,
+  goal progress, streaks, gamification points, and `GamificationSnapshot` data (achievement
+  progress, streak boosts). `RuntimeStateService` persists the singleton active timer state and
+  discards it when it was saved on a prior local calendar day.
+- Gamification points are computed from a completed focus phase's duration, its `SessionMode`
+  multiplier, and a same-day consecutive-completed-focus streak boost (see `POINTS_PER_MINUTE` and
+  `BOOST_THRESHOLDS` in `history.py`). `PomodoroApplication.tick()` awards
+  `HistoryService.points_for_record()` into `points_total` before persisting the record.
 
 ## Project Conventions
 
@@ -88,14 +99,16 @@ There is currently no test directory or test runner configuration, so no full-su
   advance an in-process timer; never derive elapsed duration from wall-clock timestamps.
 - Synchronize runtime state after every timer mutation and on shutdown. Clearing a stopped timer
   state is intentional; restoration is limited to state saved on the current local day.
-- Preserve persisted table names and the values of `PhaseType` and `SessionStatus` enums. SQLite
-  databases already store these SQLAlchemy enum-backed values.
+- Preserve persisted table names and the values of `PhaseType`, `SessionStatus`, and `SessionMode`
+  enums. SQLite databases already store these SQLAlchemy enum-backed values. When adding a new
+  persisted column to an existing table, add an additive migration function in `db.py` (following
+  `_migrate_session_mode_columns`) rather than relying on `Base.metadata.create_all()` alone.
 - Save settings through `ConfigService.save()`, then apply them with
   `PomodoroTimer.apply_settings()`. The configuration UI edits a `dataclasses.replace()` draft and
   reports validation errors through `status_message`; do not mutate saved configuration fields
   directly from the UI.
-- Use `@dataclass(slots=True)` for transient timer, configuration, history, and runtime-state value
-  objects, consistent with the existing models.
+- Use `@dataclass(slots=True)` for transient timer, configuration, history, gamification, and
+  runtime-state value objects, consistent with the existing models.
 - Account for terminal dimensions before every `screen.print_at` call, including centered text and
   dynamically sized timer rings. Keep keyboard controls and labels aligned with `README.md`.
 - Follow the configured Ruff style: 99-character lines, Google docstrings when adding docstrings,

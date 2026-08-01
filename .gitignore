@@ -37,5 +37,5 @@ htmlcov/
 .env
 
 # plans directory
-plans/*
+feature_plans/*
 !.gitkeep
