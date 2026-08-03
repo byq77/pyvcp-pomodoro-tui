@@ -7,6 +7,15 @@ if TYPE_CHECKING:
 
 from .config import ConfigService, ConfigValues
 from .db import create_engine_and_session_factory, init_db
+from .debt import (
+    DebtNotFoundError,
+    DebtPaymentValues,
+    DebtService,
+    DebtSnapshot,
+    DebtValues,
+    InsufficientPointsError as DebtInsufficientPointsError,
+    NoDebtToPayError,
+)
 from .history import GamificationSnapshot, HistoryService, HistorySnapshot, RewardHistoryStats
 from .models import PhaseType, SessionStatus
 from .rewards import (
@@ -30,6 +39,7 @@ class PomodoroApplication:
         self._history_service = HistoryService(session_factory)
         self._runtime_state_service = RuntimeStateService(session_factory)
         self._rewards_service = RewardsService(session_factory)
+        self._debt_service = DebtService(session_factory)
         self.config = self._config_service.get_or_create()
         self.timer = PomodoroTimer(self.config.to_timer_settings())
         self.status_message = "Ready."
@@ -155,6 +165,54 @@ class PomodoroApplication:
             f"for {purchase.total_cost_points:g} points."
         )
         return purchase
+
+    def debt_snapshot(self) -> DebtSnapshot:
+        return self._debt_service.snapshot(self.points_total)
+
+    def create_debt_entry(self, description: str, amount: float) -> DebtValues | None:
+        try:
+            entry = self._debt_service.create_entry(description, amount)
+        except ValueError as exc:
+            self.status_message = f"Debt error: {exc}"
+            return None
+        self.status_message = f"Added debt '{entry.description}' ({entry.amount:g})."
+        return entry
+
+    def update_debt_entry(
+        self, debt_id: int, description: str, amount: float
+    ) -> DebtValues | None:
+        try:
+            entry = self._debt_service.update_entry(debt_id, description, amount)
+        except (ValueError, DebtNotFoundError) as exc:
+            self.status_message = f"Debt error: {exc}"
+            return None
+        self.status_message = f"Updated debt '{entry.description}'."
+        return entry
+
+    def delete_debt_entry(self, debt_id: int) -> bool:
+        try:
+            self._debt_service.delete_entry(debt_id)
+        except DebtNotFoundError as exc:
+            self.status_message = f"Debt error: {exc}"
+            return False
+        self.status_message = "Debt entry deleted."
+        return True
+
+    def pay_off_debt(self, amount_points: float) -> DebtPaymentValues | None:
+        try:
+            payment = self._debt_service.pay_off(amount_points, self.points_total)
+        except ValueError as exc:
+            self.status_message = f"Payoff error: {exc}"
+            return None
+        except NoDebtToPayError as exc:
+            self.status_message = f"Payoff error: {exc}"
+            return None
+        except DebtInsufficientPointsError as exc:
+            self.status_message = f"Not enough points: missing {exc.missing:g}."
+            return None
+        self.points_total -= payment.amount_points
+        self.status_message = f"Paid off {payment.amount_points:g} points of debt."
+        return payment
 
     def _sync_runtime_state(self) -> None:
         runtime_state = self.timer.export_runtime_state()

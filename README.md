@@ -65,6 +65,14 @@ Rewards view:
 - `D` delete the selected reward (asks for confirmation)
 - `B` buy the selected reward (opens a form to choose quantity)
 
+Debt view:
+
+- `Up` / `Down` select a debt entry
+- `N` add a new debt entry (opens a form for description and amount)
+- `E` edit the selected debt entry's description and amount
+- `D` delete the selected debt entry (asks for confirmation)
+- `P` pay off debt with points (opens a form to choose the amount)
+
 ## Features
 
 - Full Pomodoro cycle with automatic phase transitions.
@@ -90,6 +98,15 @@ Rewards view:
   - create, rename, re-price, and delete rewards using asciimatics forms
   - buy a chosen quantity of a reward if enough points are available
   - the `Points:` total shown across the app is the available balance
-    (points earned minus points spent on rewards)
+    (points earned minus points spent on rewards and paid off as debt)
   - each purchase keeps a frozen snapshot of the reward's name and cost, so
     editing or deleting a reward never changes past purchase history
+- Debt screen for tracking and paying down owed amounts with points:
+  - add, edit, and delete one-off debt entries (description and amount) using
+    asciimatics forms
+  - pay off outstanding debt with available points (1 point = 1 unit of debt);
+    a payment is capped to the remaining debt, and is rejected if it would
+    exceed the available points balance
+  - total debt is the sum of debt entries minus total payments made, clamped
+    at a minimum of 0
+  - all debt entries and payments are recorded and shown on the screen

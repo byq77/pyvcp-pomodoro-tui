@@ -6,8 +6,8 @@ from functools import cache
 from typing import TYPE_CHECKING
 from asciimatics.exceptions import ResizeScreenError
 from asciimatics.screen import Screen
-from pomodoro_tui import __version__
 from pomodoro_tui.models import SessionStatus
+from pomodoro_tui.ui.debt_forms import run_debt_form, run_payoff_form
 from pomodoro_tui.ui.reward_forms import run_confirm_dialog, run_purchase_form, run_reward_form
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ PROGRESS_RING_MIN_INNER_RADIUS_Y = 5
 PROGRESS_RING_MAX_INNER_RADIUS_Y = 10
 PROGRESS_RING_ELAPSED_GLYPH = "$$"
 
-_MENU_ITEMS = ("Timer", "Config", "History", "Achievements", "Rewards", "Quit")
+_MENU_ITEMS = ("Timer", "Config", "History", "Achievements", "Rewards", "Debt", "Quit")
 
 
 def _format_seconds(total_seconds: int) -> str:
@@ -114,6 +114,7 @@ class PomodoroTUI:
         ]
         self._selected_config_index = 0
         self._selected_reward_index = 0
+        self._selected_debt_index = 0
         self._menu_index = 0  # index into _MENU_ITEMS; updated on Left/Right, activated on Enter
 
     def run(self) -> None:
@@ -145,6 +146,8 @@ class PomodoroTUI:
                 self._draw_history(screen)
             elif self._mode == "rewards":
                 self._draw_rewards(screen)
+            elif self._mode == "debt":
+                self._draw_debt(screen)
             else:
                 self._draw_achievements(screen)
             screen.refresh()
@@ -154,9 +157,7 @@ class PomodoroTUI:
             time.sleep(0.1)
 
     def _draw_header(self, screen: Screen) -> None:
-        title = f"Pomodoro TUI v{__version__}  |  "
-        screen.print_at(title, 0, 0, Screen.COLOUR_CYAN, Screen.A_BOLD)
-        x = len(title)
+        x = 0
         for i, item in enumerate(_MENU_ITEMS):
             highlighted = i == self._menu_index
             label = f"[{item}]" if highlighted else f" {item} "
@@ -442,6 +443,60 @@ class PomodoroTUI:
                 Screen.COLOUR_YELLOW,
             )
 
+    def _draw_debt(self, screen: Screen) -> None:
+        snapshot = self._app.debt_snapshot()
+        screen.print_at("Mode: Debt", 0, 3, Screen.COLOUR_WHITE, Screen.A_BOLD)
+        screen.print_at(
+            "Controls: [Up/Down]=select [N]=new [E]=edit [D]=delete [P]=pay off debt",
+            0,
+            4,
+        )
+        screen.print_at(
+            f"Total debt: {snapshot.total_debt:g}  |  Available points: "
+            f"{snapshot.available_points:g}",
+            0,
+            5,
+            Screen.COLOUR_RED,
+            Screen.A_BOLD,
+        )
+
+        screen.print_at("Debt entries:", 0, 7, Screen.COLOUR_CYAN, Screen.A_BOLD)
+        line = 8
+        entries_area_end = max(line, screen.height - 14)
+        if not snapshot.entries:
+            screen.print_at("No debt yet. Press [N] to add one.", 0, line)
+            line += 1
+        for idx, entry in enumerate(snapshot.entries):
+            if line >= entries_area_end:
+                break
+            pointer = ">" if idx == self._selected_debt_index else " "
+            colour = (
+                Screen.COLOUR_CYAN if idx == self._selected_debt_index else Screen.COLOUR_WHITE
+            )
+            screen.print_at(
+                f"{pointer} {entry.description:<24} | {entry.amount:g}", 0, line, colour
+            )
+            line += 1
+
+        line = entries_area_end + 1
+        if line < screen.height - 1:
+            screen.print_at("Recent payments:", 0, line, Screen.COLOUR_CYAN, Screen.A_BOLD)
+            line += 1
+        for payment in snapshot.recent_payments[: max(0, screen.height - line - 2)]:
+            if line >= screen.height - 1:
+                break
+            stamp = payment.paid_at.astimezone().strftime("%Y-%m-%d %H:%M")
+            screen.print_at(f"{stamp} | paid {payment.amount_points:g} pts", 0, line)
+            line += 1
+
+        if line < screen.height:
+            screen.print_at(
+                f"Status: {self._app.status_message}",
+                0,
+                min(screen.height - 1, line + 1),
+                Screen.COLOUR_YELLOW,
+            )
+
     def _draw_achievements(self, screen: Screen) -> None:
         snapshot = self._app.gamification_snapshot()
         screen.print_at("Mode: Achievements", 0, 3, Screen.COLOUR_WHITE, Screen.A_BOLD)
@@ -543,6 +598,8 @@ class PomodoroTUI:
             self._handle_config_key(key)
         elif self._mode == "rewards":
             self._handle_rewards_key(screen, key)
+        elif self._mode == "debt":
+            self._handle_debt_key(screen, key)
 
     def _activate_menu_item(self) -> None:
         if self._menu_index == 0:
@@ -558,6 +615,9 @@ class PomodoroTUI:
             self._mode = "rewards"
             self._selected_reward_index = 0
         elif self._menu_index == 5:
+            self._mode = "debt"
+            self._selected_debt_index = 0
+        elif self._menu_index == 6:
             self._app.shutdown()
             self._running = False
 
@@ -653,3 +713,46 @@ class PomodoroTUI:
             )
             if result is not None:
                 self._app.purchase_reward(selected.id, result.quantity)
+
+    def _handle_debt_key(self, screen: Screen, key: int) -> None:
+        entries = self._app.debt_snapshot().entries
+        if key == Screen.KEY_UP:
+            self._selected_debt_index = max(0, self._selected_debt_index - 1)
+            return
+        if key == Screen.KEY_DOWN:
+            self._selected_debt_index = min(
+                max(0, len(entries) - 1), self._selected_debt_index + 1
+            )
+            return
+        if key in (ord("n"), ord("N")):
+            result = run_debt_form(screen, title="New Debt")
+            if result is not None:
+                self._app.create_debt_entry(result.description, result.amount)
+            return
+        if key in (ord("p"), ord("P")):
+            snapshot = self._app.debt_snapshot()
+            result = run_payoff_form(
+                screen, total_debt=snapshot.total_debt, available=snapshot.available_points
+            )
+            if result is not None:
+                self._app.pay_off_debt(result.amount_points)
+            return
+
+        if not entries:
+            return
+        self._selected_debt_index = min(self._selected_debt_index, len(entries) - 1)
+        selected = entries[self._selected_debt_index]
+
+        if key in (ord("e"), ord("E")):
+            result = run_debt_form(
+                screen,
+                title="Edit Debt",
+                initial_description=selected.description,
+                initial_amount=f"{selected.amount:g}",
+            )
+            if result is not None:
+                self._app.update_debt_entry(selected.id, result.description, result.amount)
+        elif key in (ord("d"), ord("D")):
+            if run_confirm_dialog(screen, f"Delete debt '{selected.description}'?"):
+                self._app.delete_debt_entry(selected.id)
+                self._selected_debt_index = max(0, self._selected_debt_index - 1)
