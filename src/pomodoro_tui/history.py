@@ -1,12 +1,9 @@
 from __future__ import annotations
-
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
-
 from sqlalchemy import func, select
-
 from .models import PhaseType, PomodoroSession, SessionMode, SessionStatus
 
 if TYPE_CHECKING:

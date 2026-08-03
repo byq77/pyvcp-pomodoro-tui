@@ -317,7 +317,8 @@ class PomodoroTUI:
         goal = snapshot.goal_progress_today
         ratio = min(100, int(goal.completion_ratio * 100))
         screen.print_at(
-            f"Today goal progress: {goal.completed_focus_sessions}/{goal.goal_sessions} ({ratio}%)",
+            f"Today goal progress: {goal.completed_focus_sessions}/ \
+            {goal.goal_sessions} ({ratio}%)",
             0,
             5,
             Screen.COLOUR_GREEN,
@@ -383,7 +384,8 @@ class PomodoroTUI:
 
         boost = snapshot.today_boost
         screen.print_at(
-            f"Today's focus streak: {boost.consecutive_focus_completed} | Active boost: x{boost.multiplier:g}",
+            f"Today's focus streak: {boost.consecutive_focus_completed} \
+                | Active boost: x{boost.multiplier:g}",
             0,
             line,
             Screen.COLOUR_GREEN,

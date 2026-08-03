@@ -5,7 +5,6 @@ from .models import AppTimerState
 from .timer import TimerRuntimeState
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
     from .db import SessionFactory
 
 
