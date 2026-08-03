@@ -1,6 +1,7 @@
 # Pomodoro TUI
 
 Terminal Pomodoro application in Python using:
+
 - asciimatics
 - SQLite
 - SQLAlchemy
@@ -37,21 +38,22 @@ TEST_DB_PATH=/tmp/pomodoro.sqlite3
 ## Controls
 
 Global:
-- `T` timer view
-- `C` configuration view
-- `H` history view
-- `A` achievements view
+
+- `←` / `→` navigate the top menu
+- `Enter` activate the highlighted menu item
 - `Q` quit
 
 Timer view:
+
 - `Space` start / pause / resume
 - `Tab` cycle session mode: Silent (`x1.5`), Normal (`x1.0`), Dirty (`x0.5`)
 - `N` skip current phase
 - `X` stop timer
 
 Configuration view:
+
 - `Up` / `Down` select setting
-- `Left` / `Right` or `-` / `+` change numeric value
+- `-` / `+` change numeric value
 - `Space` toggle boolean value
 - `S` save settings
 

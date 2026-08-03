@@ -44,6 +44,8 @@ PROGRESS_RING_MIN_INNER_RADIUS_Y = 5
 PROGRESS_RING_MAX_INNER_RADIUS_Y = 10
 PROGRESS_RING_ELAPSED_GLYPH = "$$"
 
+_MENU_ITEMS = ("Timer", "Config", "History", "Achievements", "Quit")
+
 
 def _format_seconds(total_seconds: int) -> str:
     minutes, seconds = divmod(max(0, total_seconds), 60)
@@ -110,6 +112,7 @@ class PomodoroTUI:
             ("achievements_enabled", "Enable achievements", "bool"),
         ]
         self._selected_config_index = 0
+        self._menu_index = 0  # index into _MENU_ITEMS; updated on Left/Right, activated on Enter
 
     def run(self) -> None:
         while True:
@@ -147,8 +150,15 @@ class PomodoroTUI:
             time.sleep(0.1)
 
     def _draw_header(self, screen: Screen) -> None:
-        title = f"Pomodoro TUI v{__version__}  |  [T]imer [C]onfig [H]istory [A]chievements [Q]uit"
+        title = f"Pomodoro TUI v{__version__}  |  "
         screen.print_at(title, 0, 0, Screen.COLOUR_CYAN, Screen.A_BOLD)
+        x = len(title)
+        for i, item in enumerate(_MENU_ITEMS):
+            highlighted = i == self._menu_index
+            label = f"[{item}]" if highlighted else f" {item} "
+            colour = Screen.COLOUR_YELLOW if highlighted else Screen.COLOUR_CYAN
+            screen.print_at(label, x, 0, colour, Screen.A_BOLD)
+            x += len(label) + 1
         screen.print_at("-" * screen.width, 0, 1)
 
     def _draw_timer(self, screen: Screen) -> None:
@@ -213,7 +223,7 @@ class PomodoroTUI:
         )
         self._print_centered(
             screen,
-            "Space: start/pause/resume   Tab: mode   N: skip   R: reset counter   X: stop",
+            "←/→: menu   Space: start/pause/resume   Tab: mode   N: skip   R: reset   X: stop",
             controls_y,
         )
         self._print_centered(
@@ -289,7 +299,7 @@ class PomodoroTUI:
     def _draw_config(self, screen: Screen) -> None:
         screen.print_at("Mode: Configuration", 0, 3, Screen.COLOUR_WHITE, Screen.A_BOLD)
         screen.print_at(
-            "Controls: [Up/Down]=select [Left/Right or +/-]=change [Space]=toggle [S]=save",
+            "Controls: [Up/Down]=select [+/-]=change [Space]=toggle [S]=save",
             0,
             4,
         )
@@ -447,24 +457,34 @@ class PomodoroTUI:
             self._app.shutdown()
             self._running = False
             return
-        if key in (ord("t"), ord("T")):
-            self._mode = "timer"
+        if key == Screen.KEY_LEFT:
+            self._menu_index = max(0, self._menu_index - 1)
             return
-        if key in (ord("c"), ord("C")):
-            self._mode = "config"
-            self._config_draft = replace(self._app.config)
+        if key == Screen.KEY_RIGHT:
+            self._menu_index = min(len(_MENU_ITEMS) - 1, self._menu_index + 1)
             return
-        if key in (ord("h"), ord("H")):
-            self._mode = "history"
-            return
-        if key in (ord("a"), ord("A")):
-            self._mode = "achievements"
+        if key in (ord("\r"), ord("\n")):
+            self._activate_menu_item()
             return
 
         if self._mode == "timer":
             self._handle_timer_key(key)
         elif self._mode == "config":
             self._handle_config_key(key)
+
+    def _activate_menu_item(self) -> None:
+        if self._menu_index == 0:
+            self._mode = "timer"
+        elif self._menu_index == 1:
+            self._mode = "config"
+            self._config_draft = replace(self._app.config)
+        elif self._menu_index == 2:
+            self._mode = "history"
+        elif self._menu_index == 3:
+            self._mode = "achievements"
+        elif self._menu_index == 4:
+            self._app.shutdown()
+            self._running = False
 
     def _handle_timer_key(self, key: int) -> None:
         if key == ord(" "):
@@ -502,13 +522,13 @@ class PomodoroTUI:
                 )
             return
 
-        if key in (Screen.KEY_LEFT, ord("-")):
+        if key in (ord("-"),):
             setattr(
                 self._config_draft,
                 field_name,
                 max(1, int(getattr(self._config_draft, field_name)) - 1),
             )
-        elif key in (Screen.KEY_RIGHT, ord("+"), ord("=")):
+        elif key in (ord("+"), ord("=")):
             setattr(
                 self._config_draft,
                 field_name,
