@@ -32,7 +32,8 @@ output-format = "concise"
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 # Enable Pyflakes `E` and `F` codes by default.
-select = ["ALL"]
+# Keep this focused; `ALL` is usually too noisy unless you're ready to curate many ignores.
+select = ["E", "F", "I"]
 ignore = [
     "ANN204", # Missing return type annotation for special (dunder) method
     "FBT",    # Using boolean function arguments

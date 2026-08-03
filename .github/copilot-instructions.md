@@ -8,15 +8,18 @@
 repository-maintained files.
 - When working in a git worktree, create and use a separate `.venv` in that worktree. Do not
 reuse the virtual environment from the main checkout or another worktree. Never apply changes from a worktree to the main checkout or another worktree.
+- Do not read the feature_plans directory unless the user explicitly asks for it. The feature plans are not part of the current implementation and may contain outdated or incorrect information.
 
 ## Build
 
 Create an .venv environment (if not already created) to work with the repository. Use Python 3.11 or later.:
+
 ```bash
 python3 -m venv .venv
 ```
 
 Activate the virtual environment and install the project in editable mode with development dependencies:
+
 ```bash
 source .venv/bin/activate
 python -m pip install -e .[dev] --config-settings editable_mode=strict
@@ -25,16 +28,19 @@ python -m pip install -e .[dev] --config-settings editable_mode=strict
 ## Run
 
 Before running the application, ensure that the `.env` file exists in the root directory and contains a valid `TEST_DB_PATH` value:
+
 ```dotenv
 TEST_DB_PATH=/tmp/pomodoro.sqlite3
 ```
 
 Run the application in the terminal:
+
 ```bash
 pomodoro-tui
 ```
 
 You can also specify a database path directly with the `--db-path` option:
+
 ```bash
 pomodoro-tui --db-path /tmp/pomodoro.sqlite3
 ```
@@ -47,11 +53,23 @@ Never run `pomodoro-tui` without the `--db-path` option or the `.env` file! We d
 
 ## Linting and Formatting
 
-Do it after editing code, before committing, and before pushing to the remote repository. The `ruff` tool is used for linting and formatting checks:
+Do it only as a final step, after all code changes are complete, after editing code, before committing, and before pushing to the remote repository. The `ruff` tool is used for linting and formatting checks:
 
 ```bash
 python -m ruff check src
 python -m ruff format --check src
+```
+
+To automatically fix sorting and formatting issues, run:
+
+```bash
+python -m ruff check src --select I --fix
+```
+
+or more generally
+
+```bash
+python -m ruff check src --fix
 ```
 
 There is currently no test directory or test runner configuration, so no full-suite or single-test command exists. If tests are introduced, keep them under `tests/`; the existing Ruff configuration already provides test-specific rule exceptions.
