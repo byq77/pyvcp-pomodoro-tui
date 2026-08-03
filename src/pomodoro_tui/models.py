@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timezone
 from enum import Enum
-from sqlalchemy import Boolean, DateTime, Enum as SqlEnum, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Enum as SqlEnum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -75,6 +75,40 @@ class PomodoroSession(Base):
     )
     interruption_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     note: Mapped[str | None] = mapped_column(String(300), nullable=True)
+
+
+class RewardDefinition(Base):
+    __tablename__ = "reward_definition"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    cost_points: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
+class RewardPurchase(Base):
+    __tablename__ = "reward_purchase"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reward_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("reward_definition.id", ondelete="SET NULL"), nullable=True
+    )
+    reward_name_snapshot: Mapped[str] = mapped_column(String(120), nullable=False)
+    unit_cost_points_snapshot: Mapped[float] = mapped_column(Float, nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    total_cost_points: Mapped[float] = mapped_column(Float, nullable=False)
+    purchased_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
 
 
 class AppTimerState(Base):

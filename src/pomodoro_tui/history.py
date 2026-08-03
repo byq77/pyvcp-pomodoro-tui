@@ -42,11 +42,20 @@ class GoalProgress:
 
 
 @dataclass(slots=True)
+class RewardHistoryStats:
+    """Aggregated reward-spending statistics surfaced in the History view."""
+
+    total_spent_points: float
+    total_rewards_acquired: int
+
+
+@dataclass(slots=True)
 class HistorySnapshot:
     recent_sessions: list[PomodoroSession]
     daily_totals: list[DailyTotal]
     current_streak_days: int
     goal_progress_today: GoalProgress
+    reward_stats: RewardHistoryStats
 
 
 @dataclass(slots=True)
@@ -133,7 +142,7 @@ class HistoryService:
             current_streak,
         )
 
-    def snapshot(self, config: ConfigValues) -> HistorySnapshot:
+    def snapshot(self, config: ConfigValues, reward_stats: RewardHistoryStats) -> HistorySnapshot:
         recent_sessions = self.recent_sessions(limit=20)
         daily_totals = self.daily_totals(
             days=config.history_days_visible,
@@ -146,6 +155,7 @@ class HistoryService:
             daily_totals=daily_totals,
             current_streak_days=streak,
             goal_progress_today=goal_progress,
+            reward_stats=reward_stats,
         )
 
     def gamification_snapshot(self, config: ConfigValues) -> GamificationSnapshot:

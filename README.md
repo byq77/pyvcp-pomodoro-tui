@@ -57,6 +57,14 @@ Configuration view:
 - `Space` toggle boolean value
 - `S` save settings
 
+Rewards view:
+
+- `Up` / `Down` select a reward
+- `N` create a new reward (opens a form for name and cost)
+- `E` edit the selected reward's name and cost
+- `D` delete the selected reward (asks for confirmation)
+- `B` buy the selected reward (opens a form to choose quantity)
+
 ## Features
 
 - Full Pomodoro cycle with automatic phase transitions.
@@ -77,3 +85,11 @@ Configuration view:
   - daily totals
   - current streak
   - daily goal progress
+  - total points spent on rewards and total rewards acquired
+- Rewards screen for spending points on user-defined prizes:
+  - create, rename, re-price, and delete rewards using asciimatics forms
+  - buy a chosen quantity of a reward if enough points are available
+  - the `Points:` total shown across the app is the available balance
+    (points earned minus points spent on rewards)
+  - each purchase keeps a frozen snapshot of the reward's name and cost, so
+    editing or deleting a reward never changes past purchase history

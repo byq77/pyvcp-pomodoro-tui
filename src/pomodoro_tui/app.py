@@ -7,8 +7,16 @@ if TYPE_CHECKING:
 
 from .config import ConfigService, ConfigValues
 from .db import create_engine_and_session_factory, init_db
-from .history import GamificationSnapshot, HistoryService, HistorySnapshot
+from .history import GamificationSnapshot, HistoryService, HistorySnapshot, RewardHistoryStats
 from .models import PhaseType, SessionStatus
+from .rewards import (
+    InsufficientPointsError,
+    RewardNotFoundError,
+    RewardPurchaseValues,
+    RewardsService,
+    RewardsSnapshot,
+    RewardValues,
+)
 from .runtime_state import RuntimeStateService
 from .timer import PomodoroTimer
 
@@ -21,10 +29,13 @@ class PomodoroApplication:
         self._config_service = ConfigService(session_factory)
         self._history_service = HistoryService(session_factory)
         self._runtime_state_service = RuntimeStateService(session_factory)
+        self._rewards_service = RewardsService(session_factory)
         self.config = self._config_service.get_or_create()
         self.timer = PomodoroTimer(self.config.to_timer_settings())
         self.status_message = "Ready."
-        self.points_total = self._history_service.total_points()
+        self.points_total = (
+            self._history_service.total_points() - self._rewards_service.total_spent_points()
+        )
         self._restore_timer_state()
 
     def tick(self) -> None:
@@ -90,10 +101,60 @@ class PomodoroApplication:
         self._sync_runtime_state()
 
     def history_snapshot(self) -> HistorySnapshot:
-        return self._history_service.snapshot(self.config)
+        reward_stats = RewardHistoryStats(
+            total_spent_points=self._rewards_service.total_spent_points(),
+            total_rewards_acquired=self._rewards_service.total_rewards_acquired(),
+        )
+        return self._history_service.snapshot(self.config, reward_stats)
 
     def gamification_snapshot(self) -> GamificationSnapshot:
         return self._history_service.gamification_snapshot(self.config)
+
+    def rewards_snapshot(self) -> RewardsSnapshot:
+        return self._rewards_service.snapshot(self.points_total)
+
+    def create_reward(self, name: str, cost_points: float) -> RewardValues | None:
+        try:
+            reward = self._rewards_service.create_reward(name, cost_points)
+        except ValueError as exc:
+            self.status_message = f"Reward error: {exc}"
+            return None
+        self.status_message = f"Added reward '{reward.name}' ({reward.cost_points:g} pts)."
+        return reward
+
+    def update_reward(self, reward_id: int, name: str, cost_points: float) -> RewardValues | None:
+        try:
+            reward = self._rewards_service.update_reward(reward_id, name, cost_points)
+        except (ValueError, RewardNotFoundError) as exc:
+            self.status_message = f"Reward error: {exc}"
+            return None
+        self.status_message = f"Updated reward '{reward.name}'."
+        return reward
+
+    def delete_reward(self, reward_id: int) -> bool:
+        try:
+            self._rewards_service.delete_reward(reward_id)
+        except RewardNotFoundError as exc:
+            self.status_message = f"Reward error: {exc}"
+            return False
+        self.status_message = "Reward deleted."
+        return True
+
+    def purchase_reward(self, reward_id: int, quantity: int) -> RewardPurchaseValues | None:
+        try:
+            purchase = self._rewards_service.purchase(reward_id, quantity, self.points_total)
+        except (ValueError, RewardNotFoundError) as exc:
+            self.status_message = f"Purchase error: {exc}"
+            return None
+        except InsufficientPointsError as exc:
+            self.status_message = f"Not enough points: missing {exc.missing:g}."
+            return None
+        self.points_total -= purchase.total_cost_points
+        self.status_message = (
+            f"Bought {purchase.quantity}x '{purchase.reward_name_snapshot}' "
+            f"for {purchase.total_cost_points:g} points."
+        )
+        return purchase
 
     def _sync_runtime_state(self) -> None:
         runtime_state = self.timer.export_runtime_state()

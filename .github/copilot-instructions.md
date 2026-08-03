@@ -87,26 +87,38 @@ There is currently no test directory or test runner configuration, so no full-su
   (`SILENT`/`NORMAL`/`DIRTY`, each with a points multiplier), and exports/imports
   `TimerRuntimeState`.
 - `PomodoroTUI` is the asciimatics presentation layer. Its 0.1-second loop calls `app.tick()`,
-  renders timer, configuration, history, and achievements modes, and maps input only to application
-  methods. The `Screen.wrapper` retry loop owns resize recovery; drawing helpers must keep all
-  output in bounds.
-- SQLAlchemy models in `models.py` define `AppConfig`, `PomodoroSession`, and `AppTimerState`.
-  `db.py` creates the SQLite engine, enables foreign keys on every connection, initializes tables
-  with `Base.metadata.create_all()`, and then runs additive column migrations (e.g.
-  `_migrate_session_mode_columns`, `_migrate_achievements_enabled_column`) for databases created
-  before those columns existed. The default database is
+  renders timer, configuration, history, achievements, and rewards modes, and maps input only to
+  application methods. The `Screen.wrapper` retry loop owns resize recovery; drawing helpers must
+  keep all output in bounds. The rewards screen is the only view that also uses asciimatics'
+  `Frame`/`Widget` system (in `ui/reward_forms.py`): creating/editing a reward, choosing a
+  purchase quantity, and confirming a deletion each run as a small modal `Frame` via `Screen.play`,
+  returning control to the raw `print_at` loop once a `Button` handler raises `StopApplication`.
+- SQLAlchemy models in `models.py` define `AppConfig`, `PomodoroSession`, `AppTimerState`,
+  `RewardDefinition`, and `RewardPurchase`. `db.py` creates the SQLite engine, enables foreign keys
+  on every connection, initializes tables with `Base.metadata.create_all()` (which also creates any
+  brand-new tables, such as the reward tables, on existing databases), and then runs additive
+  column migrations (e.g. `_migrate_session_mode_columns`, `_migrate_achievements_enabled_column`)
+  for databases created before those columns existed. The default database is
   `~/.local/share/pomodoro-tui/pomodoro.sqlite3`.
 - `ConfigService` persists the singleton `AppConfig` row (`id=1`) and exposes detached
   `ConfigValues`, including gamification/analytics settings (`daily_goal_sessions`,
   `include_breaks_in_totals`, `streak_requires_goal`, `track_weekends`, `history_days_visible`,
   `achievements_enabled`). `HistoryService` stores phase records and derives history, daily totals,
   goal progress, streaks, gamification points, and `GamificationSnapshot` data (achievement
-  progress, streak boosts). `RuntimeStateService` persists the singleton active timer state and
-  discards it when it was saved on a prior local calendar day.
+  progress, streak boosts), plus reward-spending stats via `RewardHistoryStats` passed in from
+  `PomodoroApplication`. `RuntimeStateService` persists the singleton active timer state and
+  discards it when it was saved on a prior local calendar day. `RewardsService` owns reward CRUD
+  and purchases: it validates affordability against the caller-supplied available-points balance,
+  and every purchase snapshots the reward's name and cost at that moment so later renames,
+  re-pricing, or deletion never rewrite purchase history (deleting a reward only clears the
+  purchase's `reward_id` foreign key, keeping its snapshot fields intact).
 - Gamification points are computed from a completed focus phase's duration, its `SessionMode`
   multiplier, and a same-day consecutive-completed-focus streak boost (see `POINTS_PER_MINUTE` and
   `BOOST_THRESHOLDS` in `history.py`). `PomodoroApplication.tick()` awards
   `HistoryService.points_for_record()` into `points_total` before persisting the record.
+  `PomodoroApplication.points_total` is the *available* points balance (earned minus spent on
+  rewards); `purchase_reward()` deducts from it and `RewardsService.purchase()` raises
+  `InsufficientPointsError` before any deduction happens if the balance is too low.
 
 ## Project Conventions
 

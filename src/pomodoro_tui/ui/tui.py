@@ -8,6 +8,7 @@ from asciimatics.exceptions import ResizeScreenError
 from asciimatics.screen import Screen
 from pomodoro_tui import __version__
 from pomodoro_tui.models import SessionStatus
+from pomodoro_tui.ui.reward_forms import run_confirm_dialog, run_purchase_form, run_reward_form
 
 if TYPE_CHECKING:
     from pomodoro_tui.app import PomodoroApplication
@@ -44,7 +45,7 @@ PROGRESS_RING_MIN_INNER_RADIUS_Y = 5
 PROGRESS_RING_MAX_INNER_RADIUS_Y = 10
 PROGRESS_RING_ELAPSED_GLYPH = "$$"
 
-_MENU_ITEMS = ("Timer", "Config", "History", "Achievements", "Quit")
+_MENU_ITEMS = ("Timer", "Config", "History", "Achievements", "Rewards", "Quit")
 
 
 def _format_seconds(total_seconds: int) -> str:
@@ -112,6 +113,7 @@ class PomodoroTUI:
             ("achievements_enabled", "Enable achievements", "bool"),
         ]
         self._selected_config_index = 0
+        self._selected_reward_index = 0
         self._menu_index = 0  # index into _MENU_ITEMS; updated on Left/Right, activated on Enter
 
     def run(self) -> None:
@@ -141,10 +143,12 @@ class PomodoroTUI:
                 self._draw_config(screen)
             elif self._mode == "history":
                 self._draw_history(screen)
+            elif self._mode == "rewards":
+                self._draw_rewards(screen)
             else:
                 self._draw_achievements(screen)
             screen.refresh()
-            self._handle_key(screen.get_key())
+            self._handle_key(screen, screen.get_key())
             if screen.has_resized():
                 raise ResizeScreenError("Terminal resized")
             time.sleep(0.1)
@@ -334,6 +338,14 @@ class PomodoroTUI:
             Screen.COLOUR_GREEN,
         )
         screen.print_at(f"Current streak: {snapshot.current_streak_days} day(s)", 0, 6)
+        reward_stats = snapshot.reward_stats
+        screen.print_at(
+            f"Rewards: spent={reward_stats.total_spent_points:g} pts"
+            f" | acquired={reward_stats.total_rewards_acquired}",
+            0,
+            7,
+            Screen.COLOUR_GREEN,
+        )
         screen.print_at("Recent sessions:", 0, 8, Screen.COLOUR_CYAN, Screen.A_BOLD)
 
         line = 9
@@ -364,6 +376,64 @@ class PomodoroTUI:
                 line,
             )
             line += 1
+        if line < screen.height:
+            screen.print_at(
+                f"Status: {self._app.status_message}",
+                0,
+                min(screen.height - 1, line + 1),
+                Screen.COLOUR_YELLOW,
+            )
+
+    def _draw_rewards(self, screen: Screen) -> None:
+        snapshot = self._app.rewards_snapshot()
+        screen.print_at("Mode: Rewards", 0, 3, Screen.COLOUR_WHITE, Screen.A_BOLD)
+        screen.print_at(
+            "Controls: [Up/Down]=select [N]=new [E]=edit [D]=delete [B]=buy",
+            0,
+            4,
+        )
+        screen.print_at(
+            f"Available points: {snapshot.available_points:g}",
+            0,
+            5,
+            Screen.COLOUR_GREEN,
+            Screen.A_BOLD,
+        )
+
+        screen.print_at("Rewards:", 0, 7, Screen.COLOUR_CYAN, Screen.A_BOLD)
+        line = 8
+        rewards_area_end = max(line, screen.height - 14)
+        if not snapshot.rewards:
+            screen.print_at("No rewards yet. Press [N] to add one.", 0, line)
+            line += 1
+        for idx, reward in enumerate(snapshot.rewards):
+            if line >= rewards_area_end:
+                break
+            pointer = ">" if idx == self._selected_reward_index else " "
+            colour = (
+                Screen.COLOUR_CYAN if idx == self._selected_reward_index else Screen.COLOUR_WHITE
+            )
+            screen.print_at(
+                f"{pointer} {reward.name:<24} | {reward.cost_points:g} pts", 0, line, colour
+            )
+            line += 1
+
+        line = rewards_area_end + 1
+        if line < screen.height - 1:
+            screen.print_at("Recent purchases:", 0, line, Screen.COLOUR_CYAN, Screen.A_BOLD)
+            line += 1
+        for purchase in snapshot.recent_purchases[: max(0, screen.height - line - 2)]:
+            if line >= screen.height - 1:
+                break
+            stamp = purchase.purchased_at.astimezone().strftime("%Y-%m-%d %H:%M")
+            screen.print_at(
+                f"{stamp} | {purchase.reward_name_snapshot:<20} "
+                f"| x{purchase.quantity} | {purchase.total_cost_points:g} pts",
+                0,
+                line,
+            )
+            line += 1
+
         if line < screen.height:
             screen.print_at(
                 f"Status: {self._app.status_message}",
@@ -450,7 +520,7 @@ class PomodoroTUI:
             Screen.COLOUR_YELLOW,
         )
 
-    def _handle_key(self, key: int | None) -> None:
+    def _handle_key(self, screen: Screen, key: int | None) -> None:
         if key is None:
             return
         if key in (ord("q"), ord("Q")):
@@ -471,6 +541,8 @@ class PomodoroTUI:
             self._handle_timer_key(key)
         elif self._mode == "config":
             self._handle_config_key(key)
+        elif self._mode == "rewards":
+            self._handle_rewards_key(screen, key)
 
     def _activate_menu_item(self) -> None:
         if self._menu_index == 0:
@@ -483,6 +555,9 @@ class PomodoroTUI:
         elif self._menu_index == 3:
             self._mode = "achievements"
         elif self._menu_index == 4:
+            self._mode = "rewards"
+            self._selected_reward_index = 0
+        elif self._menu_index == 5:
             self._app.shutdown()
             self._running = False
 
@@ -534,3 +609,47 @@ class PomodoroTUI:
                 field_name,
                 int(getattr(self._config_draft, field_name)) + 1,
             )
+
+    def _handle_rewards_key(self, screen: Screen, key: int) -> None:
+        rewards = self._app.rewards_snapshot().rewards
+        if key == Screen.KEY_UP:
+            self._selected_reward_index = max(0, self._selected_reward_index - 1)
+            return
+        if key == Screen.KEY_DOWN:
+            self._selected_reward_index = min(
+                max(0, len(rewards) - 1), self._selected_reward_index + 1
+            )
+            return
+        if key in (ord("n"), ord("N")):
+            result = run_reward_form(screen, title="New Reward")
+            if result is not None:
+                self._app.create_reward(result.name, result.cost_points)
+            return
+
+        if not rewards:
+            return
+        self._selected_reward_index = min(self._selected_reward_index, len(rewards) - 1)
+        selected = rewards[self._selected_reward_index]
+
+        if key in (ord("e"), ord("E")):
+            result = run_reward_form(
+                screen,
+                title="Edit Reward",
+                initial_name=selected.name,
+                initial_cost=f"{selected.cost_points:g}",
+            )
+            if result is not None:
+                self._app.update_reward(selected.id, result.name, result.cost_points)
+        elif key in (ord("d"), ord("D")):
+            if run_confirm_dialog(screen, f"Delete reward '{selected.name}'?"):
+                self._app.delete_reward(selected.id)
+                self._selected_reward_index = max(0, self._selected_reward_index - 1)
+        elif key in (ord("b"), ord("B")):
+            result = run_purchase_form(
+                screen,
+                reward_name=selected.name,
+                unit_cost=selected.cost_points,
+                available=self._app.points_total,
+            )
+            if result is not None:
+                self._app.purchase_reward(selected.id, result.quantity)
