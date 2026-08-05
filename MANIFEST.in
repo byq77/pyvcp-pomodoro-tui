@@ -1,0 +1,11 @@
+# MANIFEST.in
+
+# graft tests
+# graft src
+# `-> adds all files inside a directory
+
+graft src/pomodoro_tui/assets
+# `-> matches file paths relative to the root of the project
+
+global-exclude *~ *.py[cod] *.so
+# `-> matches file names (regardless of directory)
