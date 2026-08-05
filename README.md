@@ -76,6 +76,7 @@ Debt view:
 ## Features
 
 - Full Pomodoro cycle with automatic phase transitions.
+- Non-blocking audio alert when a focus or break phase completes.
 - Circular timer progress ring that fills clockwise as each phase elapses and encloses the session counter and progress legend.
 - Persistent configuration in SQLite.
 - Timer runtime state persists across app restarts until the day changes.

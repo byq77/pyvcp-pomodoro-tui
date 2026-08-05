@@ -1,11 +1,14 @@
 from __future__ import annotations
 from dataclasses import replace
+from importlib.resources import files
 from typing import TYPE_CHECKING
+from playsound3 import playsound
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from .config import ConfigValues
 
-from .config import ConfigService, ConfigValues
+from .config import ConfigService
 from .db import create_engine_and_session_factory, init_db
 from .debt import (
     DebtNotFoundError,
@@ -28,6 +31,8 @@ from .rewards import (
 )
 from .runtime_state import RuntimeStateService
 from .timer import PomodoroTimer
+
+SESSION_END_SOUND_PATH = files("pomodoro_tui").joinpath("assets", "Clock-sound-effect.mp3")
 
 
 class PomodoroApplication:
@@ -53,6 +58,7 @@ class PomodoroApplication:
         for record in records:
             earned = self._history_service.points_for_record(record)
             self._history_service.record(record)
+            playsound(str(SESSION_END_SOUND_PATH), block=False)
             self.status_message = f"Completed {record.phase_type.value.replace('_', ' ')}."
             if record.phase_type == PhaseType.FOCUS and record.status == SessionStatus.COMPLETED:
                 self.points_total += earned
