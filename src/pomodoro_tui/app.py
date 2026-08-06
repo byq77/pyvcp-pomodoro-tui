@@ -83,6 +83,15 @@ class PomodoroApplication:
         self.status_message = "Focus counter reset."
         self._sync_runtime_state()
 
+    def adjust_focus_counter(self, delta: int) -> None:
+        before = self.timer.snapshot().focus_sessions_completed_in_cycle
+        after = self.timer.adjust_focus_counter(delta)
+        if after == before:
+            self.status_message = "Focus counter already at zero."
+        else:
+            self.status_message = f"Focus counter: {after}."
+        self._sync_runtime_state()
+
     def cycle_session_mode(self) -> None:
         mode = self.timer.cycle_session_mode()
         self.status_message = f"Session mode: {mode.value.title()} (x{mode.multiplier:g})."

@@ -46,6 +46,7 @@ Global:
 Timer view:
 
 - `Space` start / pause / resume
+- `Up` / `Down` increase or decrease the focus-session counter (never below `0`)
 - `Tab` cycle session mode: Silent (`x1.5`), Normal (`x1.0`), Dirty (`x0.5`)
 - `N` skip current phase
 - `X` stop timer

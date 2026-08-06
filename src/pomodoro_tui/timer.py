@@ -142,6 +142,12 @@ class PomodoroTimer:
     def reset_focus_counter(self) -> None:
         self._focus_sessions_completed_in_cycle = 0
 
+    def adjust_focus_counter(self, delta: int) -> int:
+        self._focus_sessions_completed_in_cycle = max(
+            0, self._focus_sessions_completed_in_cycle + delta
+        )
+        return self._focus_sessions_completed_in_cycle
+
     def cycle_session_mode(self) -> SessionMode:
         modes = tuple(SessionMode)
         current_index = modes.index(self._session_mode)

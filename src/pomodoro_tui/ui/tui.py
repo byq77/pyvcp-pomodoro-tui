@@ -26,6 +26,11 @@ LARGE_DIGITS = {
     "9": (" ### ", "#   #", " ####", "    #", " ### "),
     ":": ("     ", "  #  ", "     ", "  #  ", "     "),
 }
+LEFT_ARROW = "\u2190"
+RIGHT_ARROW = "\u2192"
+UP_ARROW = "\u2191"
+DOWN_ARROW = "\u2193"
+
 
 PROGRESS_RING_STEPS = 96
 # Terminal character cells are roughly twice as tall as they are wide, so the
@@ -228,7 +233,8 @@ class PomodoroTUI:
         )
         self._print_centered(
             screen,
-            "←/→: menu   Space: start/pause/resume   Tab: mode   N: skip   R: reset   X: stop",
+            f"{LEFT_ARROW}/{RIGHT_ARROW}: menu   {UP_ARROW}/{DOWN_ARROW}: counter"
+            "   Space: start/pause/resume   Tab: mode   N: skip   R: reset   X: stop",
             controls_y,
         )
         self._print_centered(
@@ -624,6 +630,10 @@ class PomodoroTUI:
     def _handle_timer_key(self, key: int) -> None:
         if key == ord(" "):
             self._app.toggle_timer()
+        elif key == Screen.KEY_UP:
+            self._app.adjust_focus_counter(1)
+        elif key == Screen.KEY_DOWN:
+            self._app.adjust_focus_counter(-1)
         elif key in (Screen.KEY_TAB, ord("\t")):
             self._app.cycle_session_mode()
         elif key in (ord("n"), ord("N")):
