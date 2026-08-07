@@ -48,9 +48,7 @@ class PomodoroApplication:
         self.config = self._config_service.get_or_create()
         self.timer = PomodoroTimer(self.config.to_timer_settings())
         self.status_message = "Ready."
-        self.points_total = (
-            self._history_service.total_points() - self._rewards_service.total_spent_points()
-        )
+        self.points_total = self._available_points_total()
         self._restore_timer_state()
 
     def tick(self) -> None:
@@ -235,6 +233,13 @@ class PomodoroApplication:
             self._runtime_state_service.clear()
             return
         self._runtime_state_service.save(runtime_state)
+
+    def _available_points_total(self) -> float:
+        return (
+            self._history_service.total_points()
+            - self._rewards_service.total_spent_points()
+            - self._debt_service.total_paid_points()
+        )
 
     def _restore_timer_state(self) -> None:
         runtime_state = self._runtime_state_service.load_for_today()
